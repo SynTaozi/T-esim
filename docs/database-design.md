@@ -38,7 +38,7 @@
 | 主表精简 | 业务属性留主表；可译文案一律进 `i18n_*` |
 | 查询效率 | 覆盖国家关系表、SKU 可售单元、订单组合索引 |
 | 规范分层 | 会员 / 商品 / 订单 / 支付 / 履约 / 营销 / 客服 / 内容 / 系统 |
-| 商品订单 | SPU + SKU；订单头与支付/物流拆表 |
+| 商品订单 | SPU + SKU；订单头与支付/物流拆表；**无购物车**（直接下单） |
 
 ## 3. 商品与订单
 
@@ -51,7 +51,7 @@ product_category ── i18n_product_category
        │
   product_coverage
        │
-  cart_item / sales_order_item
+  sales_order_item
 ```
 
 订单：
@@ -70,7 +70,8 @@ sales_order
 - **无外键**：表间 `*_id` 仅保留索引；存在性、级联删除、孤儿数据清理均在 Service 层处理
 - 货币：`USD`（`currency` 预留）
 - 金额：`DECIMAL(12,2)`
-- 钱包：`member.wallet_balance` + 只追加流水 `wallet_ledger`；改余额用 `member.version` 乐观锁
+- **不做钱包余额 / 充值 / 佣金**（后续需要再加）
+- 验证码（注册/登录/重置密码）走 **Redis**，不落库
 - 软删唯一：`member` / `product` 用生成列 `*_active`，软删后可复用用户名/邮箱/SPU
 - SKU 月档唯一：`UNIQUE (product_id, months)`；套餐必须填 `months`，设备类置 `NULL`（多规格互不冲突）
 
@@ -79,17 +80,19 @@ sales_order
 | 能力 | 表 |
 |------|-----|
 | 语言字典 | `sys_locale`（seed：zh / en） |
-| 用户/余额/邀请 | `member` + `wallet_ledger` |
+| 用户 | `member` |
 | 地址 | `member_address` |
 | 分类/商品/SKU/覆盖国 | `product_*` + `i18n_product*` |
-| 购物车/订单 | `cart_item` / `sales_order*` |
+| 订单 | `sales_order*` |
 | 实体物流 / eSIM | `sales_order_shipment` / `sales_order_esim` |
-| 支付/充值 | `payment_channel` + `i18n_payment_channel` / `wallet_recharge` |
+| 支付渠道 | `payment_channel` + `i18n_payment_channel` |
 | 已购资产/上游 | `member_subscription` / `supplier_*` / `fulfillment_task` |
-| 券/佣金 | `coupon*` / `commission_*` |
+| 优惠券 | `coupon` / `coupon_usage` |
 | 工单 | `ticket` / `ticket_message` |
 | FAQ/教程等 | `cms_*` + `i18n_cms_*` |
 | 邮件/钉钉 | `sys_*` + `i18n_sys_email_template` |
+
+**暂不做（已从表结构移除）**：验证码表、购物车、钱包余额/充值/流水、佣金与邀请字段。
 
 ## 6. 文件
 

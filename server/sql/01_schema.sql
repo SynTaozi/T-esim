@@ -44,16 +44,6 @@ CREATE TABLE `member` (
   `phone`                      VARCHAR(32)     NULL,
   `status`                     VARCHAR(16)     NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/INACTIVE/BANNED',
   `role`                       VARCHAR(16)     NOT NULL DEFAULT 'USER' COMMENT 'USER/ADMIN',
-  `wallet_balance`             DECIMAL(12,2)   NOT NULL DEFAULT 0.00 COMMENT '余额 USD',
-  `commission_balance`         DECIMAL(12,2)   NOT NULL DEFAULT 0.00 COMMENT '可提现佣金 USD',
-  `commission_frozen`          DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
-  `referral_code`              VARCHAR(32)     NULL,
-  `referred_by`                BIGINT UNSIGNED NULL COMMENT '邀请人 member.id',
-  `commission_rate_override`   DECIMAL(8,4)    NULL COMMENT '个人佣金比例覆盖，空则用全局',
-  `settlement_days_override`   INT             NULL,
-  `min_withdrawal_override`    DECIMAL(12,2)   NULL,
-  `max_withdrawal_override`    DECIMAL(12,2)   NULL,
-  `version`                    INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '乐观锁，改余额时 +1',
   `created_at`                 DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at`                 DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `deleted`                    TINYINT(1)      NOT NULL DEFAULT 0,
@@ -63,8 +53,6 @@ CREATE TABLE `member` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_member_username_active` (`username_active`),
   UNIQUE KEY `uk_member_email_active` (`email_active`),
-  UNIQUE KEY `uk_member_referral` (`referral_code`),
-  KEY `idx_member_referred_by` (`referred_by`),
   KEY `idx_member_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会员';
 
@@ -86,17 +74,7 @@ CREATE TABLE `member_address` (
   KEY `idx_address_member` (`member_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会员收货地址';
 
-CREATE TABLE `auth_verification_code` (
-  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `email`       VARCHAR(128)    NOT NULL,
-  `code`        VARCHAR(16)     NOT NULL,
-  `scene`       VARCHAR(32)     NOT NULL COMMENT 'REGISTER/RESET_PASSWORD/LOGIN',
-  `expires_at`  DATETIME(3)     NOT NULL,
-  `used`        TINYINT(1)      NOT NULL DEFAULT 0,
-  `created_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `idx_vc_email_scene` (`email`, `scene`, `used`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮箱验证码';
+-- 验证码（注册/登录/重置密码）后续放 Redis，不建表
 
 -- -----------------------------------------------------------------------------
 -- PMS · 商品目录（主表无文案；文案见文末 i18n_*）
@@ -195,20 +173,8 @@ CREATE TABLE `product_display_rule` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品展示规则';
 
 -- -----------------------------------------------------------------------------
--- OMS · 购物车 / 订单
+-- OMS · 订单（无购物车，直接下单）
 -- -----------------------------------------------------------------------------
-
-CREATE TABLE `cart_item` (
-  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `member_id`   BIGINT UNSIGNED NOT NULL,
-  `sku_id`      BIGINT UNSIGNED NOT NULL,
-  `quantity`    INT             NOT NULL DEFAULT 1,
-  `created_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updated_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_cart_member_sku` (`member_id`, `sku_id`),
-  KEY `idx_cart_sku` (`sku_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='购物车';
 
 CREATE TABLE `sales_order` (
   `id`                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -351,7 +317,7 @@ CREATE TABLE `sales_order_notice` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单客户通知记录';
 
 -- -----------------------------------------------------------------------------
--- PAY · 支付渠道 / 钱包充值
+-- PAY · 支付渠道（无余额钱包）
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE `payment_channel` (
@@ -366,45 +332,6 @@ CREATE TABLE `payment_channel` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_pay_channel_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付渠道';
-
-CREATE TABLE `wallet_recharge` (
-  `id`                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `recharge_no`          VARCHAR(64)     NOT NULL,
-  `member_id`            BIGINT UNSIGNED NOT NULL,
-  `amount`               DECIMAL(12,2)   NOT NULL,
-  `biz_type`             VARCHAR(32)     NOT NULL DEFAULT 'RECHARGE' COMMENT 'RECHARGE/RENEWAL',
-  `related_order_id`     BIGINT UNSIGNED NULL,
-  `channel_code`         VARCHAR(32)     NOT NULL,
-  `status`               VARCHAR(32)     NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/PAID/FAILED/REFUNDED',
-  `third_party_trade_no` VARCHAR(128)    NULL,
-  `paid_at`              DATETIME(3)     NULL,
-  `remark`               VARCHAR(255)    NULL,
-  `created_at`           DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updated_at`           DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_recharge_no` (`recharge_no`),
-  KEY `idx_recharge_member` (`member_id`, `created_at`),
-  KEY `idx_recharge_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='余额充值单';
-
-CREATE TABLE `wallet_ledger` (
-  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `member_id`        BIGINT UNSIGNED NOT NULL,
-  `biz_type`         VARCHAR(32)     NOT NULL
-                     COMMENT 'RECHARGE/ORDER_PAY/ORDER_REFUND/COMMISSION_TO_BALANCE/ADJUST',
-  `direction`        TINYINT         NOT NULL COMMENT '1入账 -1出账',
-  `amount`           DECIMAL(12,2)   NOT NULL COMMENT '变动绝对值 USD',
-  `balance_after`    DECIMAL(12,2)   NOT NULL COMMENT '变动后钱包余额',
-  `ref_type`         VARCHAR(32)     NULL COMMENT 'ORDER/RECHARGE/WITHDRAWAL/...',
-  `ref_id`           BIGINT UNSIGNED NULL,
-  `ref_no`           VARCHAR(64)     NULL,
-  `remark`           VARCHAR(255)    NULL,
-  `created_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `idx_wl_member_created` (`member_id`, `created_at`),
-  KEY `idx_wl_ref` (`ref_type`, `ref_id`),
-  UNIQUE KEY `uk_wl_idempotent` (`member_id`, `biz_type`, `ref_type`, `ref_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='钱包余额流水（只追加）';
 
 -- -----------------------------------------------------------------------------
 -- FUL · 履约资产 / 上游供应商
@@ -484,7 +411,7 @@ CREATE TABLE `fulfillment_task` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上游自动履约任务';
 
 -- -----------------------------------------------------------------------------
--- MKT · 优惠券 / 佣金
+-- MKT · 优惠券（佣金模块暂不做）
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE `coupon` (
@@ -521,54 +448,6 @@ CREATE TABLE `coupon_usage` (
   KEY `idx_cu_order` (`order_id`),
   KEY `idx_cu_member` (`member_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='优惠券占用/核销';
-
-CREATE TABLE `commission_config` (
-  `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `config_key`    VARCHAR(64)     NOT NULL,
-  `config_value`  VARCHAR(512)    NOT NULL,
-  `description`   VARCHAR(255)    NULL,
-  `updated_at`    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_cc_key` (`config_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='佣金全局配置';
-
-CREATE TABLE `commission_record` (
-  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `member_id`        BIGINT UNSIGNED NOT NULL COMMENT '受益人（邀请人）',
-  `from_member_id`   BIGINT UNSIGNED NOT NULL COMMENT '贡献人',
-  `order_id`         BIGINT UNSIGNED NULL,
-  `order_no`         VARCHAR(64)     NULL,
-  `recharge_no`      VARCHAR(64)     NULL,
-  `order_amount`     DECIMAL(12,2)   NOT NULL,
-  `commission_rate`  DECIMAL(8,4)   NOT NULL,
-  `commission_amount` DECIMAL(12,2)  NOT NULL,
-  `status`           VARCHAR(16)     NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/SETTLED/CANCELLED',
-  `settlement_date`  DATE            NULL,
-  `settled_at`       DATETIME(3)     NULL,
-  `created_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `idx_cr_member_status` (`member_id`, `status`),
-  KEY `idx_cr_settle` (`status`, `settlement_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='佣金流水';
-
-CREATE TABLE `commission_withdrawal` (
-  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `withdrawal_no`    VARCHAR(64)     NOT NULL,
-  `member_id`        BIGINT UNSIGNED NOT NULL,
-  `amount`           DECIMAL(12,2)   NOT NULL,
-  `withdraw_type`    VARCHAR(16)     NOT NULL COMMENT 'WITHDRAW/TO_BALANCE',
-  `status`           VARCHAR(16)     NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/PAID/REJECTED',
-  `pay_method`       VARCHAR(32)     NULL COMMENT 'alipay/wechat/bank',
-  `pay_account_json` JSON            NULL,
-  `admin_remark`     VARCHAR(255)    NULL,
-  `admin_id`         BIGINT UNSIGNED NULL,
-  `paid_at`          DATETIME(3)     NULL,
-  `created_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updated_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_cw_no` (`withdrawal_no`),
-  KEY `idx_cw_member` (`member_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='佣金提现';
 
 -- -----------------------------------------------------------------------------
 -- CSS · 客服工单（subject 为用户原文，不做目录翻译）
