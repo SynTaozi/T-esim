@@ -50,7 +50,7 @@ T-esim/
 - [x] 仓库与目录骨架
 - [x] 后端 Maven 工程（Spring Boot + MyBatis-Plus + Redis）
 - [x] 前端双端 Vue3 工程脚手架
-- [ ] 数据库设计与建表
+- [x] 数据库设计与建表脚本（`server/sql/01_schema.sql`，说明见 `docs/database-design.md`）
 - [ ] 业务模块迁移 / 精简实现
 
 ## 本地启动（脚手架阶段）
