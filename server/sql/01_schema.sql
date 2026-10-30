@@ -1,6 +1,7 @@
 -- =============================================================================
 -- T-esim 初始库表结构
 -- 引擎/字符集：InnoDB + utf8mb4
+-- 多语言：仅支持中英，可译字段用 *_zh / *_en 同表双列（非 *_i18n 表）
 -- 说明：详见 docs/database-design.md
 -- =============================================================================
 
@@ -11,23 +12,6 @@ CREATE DATABASE IF NOT EXISTS `t_esim`
 USE `t_esim`;
 
 SET NAMES utf8mb4;
-
--- -----------------------------------------------------------------------------
--- SYS · 系统 / 语言
--- -----------------------------------------------------------------------------
-
-CREATE TABLE `sys_locale` (
-  `code`         VARCHAR(16)  NOT NULL COMMENT 'BCP47，如 zh / en',
-  `name`         VARCHAR(64)  NOT NULL COMMENT '展示名',
-  `is_default`   TINYINT(1)   NOT NULL DEFAULT 0,
-  `sort_order`   INT          NOT NULL DEFAULT 0,
-  `enabled`      TINYINT(1)   NOT NULL DEFAULT 1,
-  PRIMARY KEY (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支持的语言';
-
-INSERT INTO `sys_locale` (`code`, `name`, `is_default`, `sort_order`, `enabled`) VALUES
-('zh', '中文', 1, 1, 1),
-('en', 'English', 0, 2, 1);
 
 -- -----------------------------------------------------------------------------
 -- UMS · 会员
@@ -94,13 +78,17 @@ CREATE TABLE `auth_verification_code` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮箱验证码';
 
 -- -----------------------------------------------------------------------------
--- PMS · 商品目录（主表无文案；文案在 *_i18n）
+-- PMS · 商品目录（中英双列）
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE `product_category` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `parent_id`     BIGINT UNSIGNED NULL COMMENT '空=一级分类',
   `code`          VARCHAR(64)     NOT NULL COMMENT '业务编码，如 PHONE / ESIM_DATA',
+  `name_zh`       VARCHAR(128)    NOT NULL,
+  `name_en`       VARCHAR(128)    NOT NULL,
+  `description_zh` VARCHAR(512)   NULL,
+  `description_en` VARCHAR(512)   NULL,
   `icon`          VARCHAR(255)    NULL,
   `sort_order`    INT             NOT NULL DEFAULT 0,
   `status`        TINYINT         NOT NULL DEFAULT 1 COMMENT '1启用 0停用',
@@ -112,23 +100,24 @@ CREATE TABLE `product_category` (
   KEY `idx_category_parent_sort` (`parent_id`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品分类（树）';
 
-CREATE TABLE `product_category_i18n` (
-  `category_id`  BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(128)    NOT NULL,
-  `description`  VARCHAR(512)    NULL,
-  PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_cat_i18n_cat` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分类多语言';
-
 CREATE TABLE `product` (
   `id`                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `category_id`        BIGINT UNSIGNED NULL,
   `spu_code`           VARCHAR(64)     NOT NULL COMMENT 'SPU 编码',
   `product_kind`       VARCHAR(32)     NOT NULL COMMENT 'PLAN/DEVICE/ADDON',
+  `name_zh`            VARCHAR(255)    NOT NULL,
+  `name_en`            VARCHAR(255)    NOT NULL,
+  `summary_zh`         VARCHAR(512)    NULL,
+  `summary_en`         VARCHAR(512)    NULL,
+  `description_zh`     TEXT            NULL,
+  `description_en`     TEXT            NULL,
+  `features_zh`        TEXT            NULL COMMENT '特性说明',
+  `features_en`        TEXT            NULL,
+  `notes_zh`           TEXT            NULL COMMENT '重要说明',
+  `notes_en`           TEXT            NULL,
   `plan_mode`          TINYINT         NULL COMMENT '套餐模式：0固定 1日租 2试用',
   `topup_mode`         TINYINT         NULL COMMENT '续费：0无 1支持续费 2续费+日租',
-  `data_limit`         VARCHAR(64)     NULL COMMENT '流量规格展示值，如 10GB',
+  `data_limit`         VARCHAR(64)     NULL COMMENT '流量规格，如 10GB',
   `base_validity_days` INT             NULL COMMENT '基础有效天数（SKU 可覆盖）',
   `support_sms`        TINYINT(1)      NOT NULL DEFAULT 0,
   `support_data`       TINYINT(1)      NOT NULL DEFAULT 0,
@@ -151,26 +140,17 @@ CREATE TABLE `product` (
   KEY `idx_product_cat_status_sort` (`category_id`, `status`, `sort_order`),
   KEY `idx_product_kind_status` (`product_kind`, `status`),
   KEY `idx_product_hot` (`is_hot`, `status`),
+  KEY `idx_product_name_zh` (`name_zh`),
+  KEY `idx_product_name_en` (`name_en`),
   CONSTRAINT `fk_product_category` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品 SPU';
-
-CREATE TABLE `product_i18n` (
-  `product_id`   BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(255)    NOT NULL,
-  `summary`      VARCHAR(512)    NULL,
-  `description`  TEXT            NULL,
-  `features`     TEXT            NULL COMMENT '特性说明，多行文本',
-  `notes`        TEXT            NULL COMMENT '重要说明/注意事项',
-  PRIMARY KEY (`product_id`, `locale`),
-  KEY `idx_product_i18n_name` (`locale`, `name`),
-  CONSTRAINT `fk_product_i18n` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品多语言';
 
 CREATE TABLE `product_sku` (
   `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `product_id`       BIGINT UNSIGNED NOT NULL,
   `sku_code`         VARCHAR(64)     NOT NULL,
+  `label_zh`         VARCHAR(128)    NULL COMMENT '档位标签，如 超值',
+  `label_en`         VARCHAR(128)    NULL COMMENT 'e.g. Best Value',
   `months`           INT             NULL COMMENT '月付档位；设备类可空',
   `duration_days`    INT             NULL COMMENT '覆盖天数（可与 months 并存）',
   `sale_price`       DECIMAL(12,2)   NOT NULL COMMENT '售价 USD',
@@ -188,14 +168,6 @@ CREATE TABLE `product_sku` (
   KEY `idx_sku_product_status` (`product_id`, `status`, `sort_order`),
   CONSTRAINT `fk_sku_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='可售 SKU（月份档/规格）';
-
-CREATE TABLE `product_sku_i18n` (
-  `sku_id`   BIGINT UNSIGNED NOT NULL,
-  `locale`   VARCHAR(16)     NOT NULL,
-  `label`    VARCHAR(128)    NULL COMMENT '档位标签，如 Best Value',
-  PRIMARY KEY (`sku_id`, `locale`),
-  CONSTRAINT `fk_sku_i18n` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SKU 多语言标签';
 
 CREATE TABLE `product_coverage` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -253,7 +225,7 @@ CREATE TABLE `sales_order` (
   `paid_amount`           DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
   `coupon_id`             BIGINT UNSIGNED NULL,
   `coupon_code`           VARCHAR(64)     NULL,
-  `locale`                VARCHAR(16)     NOT NULL DEFAULT 'zh' COMMENT '下单语言',
+  `locale`                VARCHAR(16)     NOT NULL DEFAULT 'zh' COMMENT '下单语言 zh/en',
   `buyer_email`           VARCHAR(128)    NOT NULL,
   `buyer_remark`          VARCHAR(500)    NULL COMMENT '用户备注',
   `seller_remark`         VARCHAR(500)    NULL COMMENT '商家备注',
@@ -370,26 +342,21 @@ CREATE TABLE `sales_order_notice` (
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE `payment_channel` (
-  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code`        VARCHAR(32)     NOT NULL,
-  `icon`        VARCHAR(255)    NULL,
-  `enabled`     TINYINT(1)      NOT NULL DEFAULT 0,
-  `sort_order`  INT             NOT NULL DEFAULT 0,
-  `extra_json`  JSON            NULL,
-  `created_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updated_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code`           VARCHAR(32)     NOT NULL,
+  `name_zh`        VARCHAR(64)     NOT NULL,
+  `name_en`        VARCHAR(64)     NOT NULL,
+  `description_zh` VARCHAR(255)    NULL,
+  `description_en` VARCHAR(255)    NULL,
+  `icon`           VARCHAR(255)    NULL,
+  `enabled`        TINYINT(1)      NOT NULL DEFAULT 0,
+  `sort_order`     INT             NOT NULL DEFAULT 0,
+  `extra_json`     JSON            NULL,
+  `created_at`     DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at`     DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_pay_channel_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付渠道';
-
-CREATE TABLE `payment_channel_i18n` (
-  `channel_id`   BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(64)     NOT NULL,
-  `description`  VARCHAR(255)    NULL,
-  PRIMARY KEY (`channel_id`, `locale`),
-  CONSTRAINT `fk_pc_i18n` FOREIGN KEY (`channel_id`) REFERENCES `payment_channel` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付渠道多语言';
 
 CREATE TABLE `wallet_recharge` (
   `id`                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -590,7 +557,7 @@ CREATE TABLE `ticket` (
   `member_id`    BIGINT UNSIGNED NOT NULL,
   `order_id`     BIGINT UNSIGNED NULL,
   `category`     VARCHAR(32)     NOT NULL DEFAULT 'GENERAL' COMMENT 'GENERAL/REFUND/TECHNICAL/BILLING/OTHER',
-  `subject`      VARCHAR(255)    NOT NULL COMMENT '用户提交原文，非目录翻译',
+  `subject`      VARCHAR(255)    NOT NULL COMMENT '用户提交原文',
   `locale`       VARCHAR(16)     NOT NULL DEFAULT 'zh',
   `priority`     VARCHAR(16)     NOT NULL DEFAULT 'NORMAL',
   `status`       VARCHAR(16)     NOT NULL DEFAULT 'OPEN' COMMENT 'OPEN/PENDING/RESOLVED/CLOSED',
@@ -617,28 +584,26 @@ CREATE TABLE `ticket_message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工单消息';
 
 -- -----------------------------------------------------------------------------
--- CMS · 内容
+-- CMS · 内容（中英双列）
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE `cms_faq_category` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name_zh`     VARCHAR(128)    NOT NULL,
+  `name_en`     VARCHAR(128)    NOT NULL,
   `sort_order`  INT             NOT NULL DEFAULT 0,
   `status`      TINYINT         NOT NULL DEFAULT 1,
   `created_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 分类';
 
-CREATE TABLE `cms_faq_category_i18n` (
-  `category_id`  BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(128)    NOT NULL,
-  PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_faq_cat_i18n` FOREIGN KEY (`category_id`) REFERENCES `cms_faq_category` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 分类多语言';
-
 CREATE TABLE `cms_faq` (
   `id`           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `category_id`  BIGINT UNSIGNED NOT NULL,
+  `question_zh`  VARCHAR(500)    NOT NULL,
+  `question_en`  VARCHAR(500)    NOT NULL,
+  `answer_zh`    TEXT            NOT NULL,
+  `answer_en`    TEXT            NOT NULL,
   `sort_order`   INT             NOT NULL DEFAULT 0,
   `status`       TINYINT         NOT NULL DEFAULT 1,
   `created_at`   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -648,36 +613,27 @@ CREATE TABLE `cms_faq` (
   CONSTRAINT `fk_faq_cat` FOREIGN KEY (`category_id`) REFERENCES `cms_faq_category` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ';
 
-CREATE TABLE `cms_faq_i18n` (
-  `faq_id`    BIGINT UNSIGNED NOT NULL,
-  `locale`    VARCHAR(16)     NOT NULL,
-  `question`  VARCHAR(500)    NOT NULL,
-  `answer`    TEXT            NOT NULL,
-  PRIMARY KEY (`faq_id`, `locale`),
-  CONSTRAINT `fk_faq_i18n` FOREIGN KEY (`faq_id`) REFERENCES `cms_faq` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 多语言';
-
 CREATE TABLE `cms_tutorial_category` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name_zh`     VARCHAR(128)    NOT NULL,
+  `name_en`     VARCHAR(128)    NOT NULL,
   `icon`        VARCHAR(255)    NULL,
   `sort_order`  INT             NOT NULL DEFAULT 0,
   `status`      TINYINT         NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程分类';
 
-CREATE TABLE `cms_tutorial_category_i18n` (
-  `category_id`  BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(128)    NOT NULL,
-  PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_tut_cat_i18n` FOREIGN KEY (`category_id`) REFERENCES `cms_tutorial_category` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程分类多语言';
-
 CREATE TABLE `cms_tutorial` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `category_id`   BIGINT UNSIGNED NOT NULL,
   `slug`          VARCHAR(128)    NOT NULL,
   `content_type`  VARCHAR(16)     NOT NULL DEFAULT 'ARTICLE' COMMENT 'ARTICLE/VIDEO/PDF',
+  `title_zh`      VARCHAR(255)    NOT NULL,
+  `title_en`      VARCHAR(255)    NOT NULL,
+  `summary_zh`    VARCHAR(512)    NULL,
+  `summary_en`    VARCHAR(512)    NULL,
+  `content_zh`    MEDIUMTEXT      NULL,
+  `content_en`    MEDIUMTEXT      NULL,
   `cover_url`     VARCHAR(512)    NULL,
   `media_url`     VARCHAR(512)    NULL,
   `sort_order`    INT             NOT NULL DEFAULT 0,
@@ -690,19 +646,13 @@ CREATE TABLE `cms_tutorial` (
   CONSTRAINT `fk_tutorial_cat` FOREIGN KEY (`category_id`) REFERENCES `cms_tutorial_category` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程';
 
-CREATE TABLE `cms_tutorial_i18n` (
-  `tutorial_id`  BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `title`        VARCHAR(255)    NOT NULL,
-  `summary`      VARCHAR(512)    NULL,
-  `content`      MEDIUMTEXT      NULL,
-  PRIMARY KEY (`tutorial_id`, `locale`),
-  CONSTRAINT `fk_tutorial_i18n` FOREIGN KEY (`tutorial_id`) REFERENCES `cms_tutorial` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程多语言';
-
 CREATE TABLE `cms_app_download` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `platform`      VARCHAR(32)     NOT NULL COMMENT 'IOS/ANDROID/...',
+  `name_zh`       VARCHAR(128)    NOT NULL,
+  `name_en`       VARCHAR(128)    NOT NULL,
+  `remark_zh`     VARCHAR(255)    NULL,
+  `remark_en`     VARCHAR(255)    NULL,
   `download_url`  VARCHAR(512)    NOT NULL,
   `qr_image_url`  VARCHAR(512)    NULL,
   `sort_order`    INT             NOT NULL DEFAULT 0,
@@ -711,15 +661,6 @@ CREATE TABLE `cms_app_download` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_app_platform` (`platform`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='App 下载入口';
-
-CREATE TABLE `cms_app_download_i18n` (
-  `download_id`  BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(128)    NOT NULL,
-  `remark`       VARCHAR(255)    NULL,
-  PRIMARY KEY (`download_id`, `locale`),
-  CONSTRAINT `fk_app_dl_i18n` FOREIGN KEY (`download_id`) REFERENCES `cms_app_download` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='App 下载多语言';
 
 CREATE TABLE `cms_site_setting` (
   `id`                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -758,22 +699,18 @@ CREATE TABLE `sys_email_account` (
 CREATE TABLE `sys_email_template` (
   `id`           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `code`         VARCHAR(64)     NOT NULL,
+  `name_zh`      VARCHAR(128)    NOT NULL,
+  `name_en`      VARCHAR(128)    NOT NULL,
+  `subject_zh`   VARCHAR(255)    NOT NULL,
+  `subject_en`   VARCHAR(255)    NOT NULL,
+  `body_zh`      MEDIUMTEXT      NOT NULL,
+  `body_en`      MEDIUMTEXT      NOT NULL,
   `enabled`      TINYINT(1)      NOT NULL DEFAULT 1,
   `description`  VARCHAR(255)    NULL,
   `updated_at`   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_et_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮件模板';
-
-CREATE TABLE `sys_email_template_i18n` (
-  `template_id`  BIGINT UNSIGNED NOT NULL,
-  `locale`       VARCHAR(16)     NOT NULL,
-  `name`         VARCHAR(128)    NOT NULL,
-  `subject`      VARCHAR(255)    NOT NULL,
-  `body`         MEDIUMTEXT      NOT NULL,
-  PRIMARY KEY (`template_id`, `locale`),
-  CONSTRAINT `fk_et_i18n` FOREIGN KEY (`template_id`) REFERENCES `sys_email_template` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮件模板多语言';
 
 CREATE TABLE `sys_dingtalk_config` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
