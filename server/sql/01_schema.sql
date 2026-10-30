@@ -251,7 +251,7 @@ CREATE TABLE `sales_order_address` (
 CREATE TABLE `sales_order_payment` (
   `id`                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `order_id`             BIGINT UNSIGNED NOT NULL,
-  `channel_code`         VARCHAR(32)     NOT NULL COMMENT 'USDT/WECHAT/ALIPAY/BALANCE/...',
+  `channel_code`         VARCHAR(32)     NOT NULL COMMENT 'USDT/WECHAT/ALIPAY/...',
   `pay_status`           VARCHAR(32)     NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/SUCCESS/FAILED/EXPIRED/REFUNDED',
   `amount`               DECIMAL(12,2)   NOT NULL,
   `currency`             CHAR(3)         NOT NULL DEFAULT 'USD',
