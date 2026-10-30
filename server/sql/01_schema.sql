@@ -2,6 +2,7 @@
 -- T-esim 初始库表结构
 -- 引擎/字符集：InnoDB + utf8mb4
 -- 多语言：仅支持 zh / en；可译文案独立到 i18n_* 表（主表只留业务字段）
+-- 约束：不建外键；关联完整性由应用代码保证（保留普通索引便于查询）
 -- 说明：详见 docs/database-design.md
 -- =============================================================================
 
@@ -64,8 +65,7 @@ CREATE TABLE `member` (
   UNIQUE KEY `uk_member_email_active` (`email_active`),
   UNIQUE KEY `uk_member_referral` (`referral_code`),
   KEY `idx_member_referred_by` (`referred_by`),
-  KEY `idx_member_status` (`status`),
-  CONSTRAINT `fk_member_referred_by` FOREIGN KEY (`referred_by`) REFERENCES `member` (`id`)
+  KEY `idx_member_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会员';
 
 CREATE TABLE `member_address` (
@@ -83,8 +83,7 @@ CREATE TABLE `member_address` (
   `created_at`      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at`      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `idx_address_member` (`member_id`),
-  CONSTRAINT `fk_address_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+  KEY `idx_address_member` (`member_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会员收货地址';
 
 CREATE TABLE `auth_verification_code` (
@@ -148,8 +147,7 @@ CREATE TABLE `product` (
   UNIQUE KEY `uk_product_spu_active` (`spu_code_active`),
   KEY `idx_product_cat_status_sort` (`category_id`, `status`, `sort_order`),
   KEY `idx_product_kind_status` (`product_kind`, `status`),
-  KEY `idx_product_hot` (`is_hot`, `status`),
-  CONSTRAINT `fk_product_category` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`)
+  KEY `idx_product_hot` (`is_hot`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品 SPU';
 
 CREATE TABLE `product_sku` (
@@ -171,8 +169,7 @@ CREATE TABLE `product_sku` (
   UNIQUE KEY `uk_sku_code` (`sku_code`),
   -- PLAN：months 必填且同 SPU 不重复；DEVICE：months 置 NULL，MySQL 允许多条 NULL
   UNIQUE KEY `uk_sku_product_months` (`product_id`, `months`),
-  KEY `idx_sku_product_status` (`product_id`, `status`, `sort_order`),
-  CONSTRAINT `fk_sku_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
+  KEY `idx_sku_product_status` (`product_id`, `status`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='可售 SKU（月份档/规格）';
 
 CREATE TABLE `product_coverage` (
@@ -182,8 +179,7 @@ CREATE TABLE `product_coverage` (
   `region_code`   VARCHAR(32)     NULL COMMENT 'Global/Asia/... 可选',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_coverage` (`product_id`, `country_code`),
-  KEY `idx_coverage_country` (`country_code`),
-  CONSTRAINT `fk_coverage_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
+  KEY `idx_coverage_country` (`country_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品覆盖国家（规范化，可按国筛选）';
 
 CREATE TABLE `product_display_rule` (
@@ -211,9 +207,7 @@ CREATE TABLE `cart_item` (
   `updated_at`  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_cart_member_sku` (`member_id`, `sku_id`),
-  KEY `idx_cart_sku` (`sku_id`),
-  CONSTRAINT `fk_cart_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_cart_sku` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`)
+  KEY `idx_cart_sku` (`sku_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='购物车';
 
 CREATE TABLE `sales_order` (
@@ -246,8 +240,7 @@ CREATE TABLE `sales_order` (
   UNIQUE KEY `uk_order_no` (`order_no`),
   KEY `idx_order_member_created` (`member_id`, `created_at`),
   KEY `idx_order_status_created` (`status`, `created_at`),
-  KEY `idx_order_email` (`buyer_email`),
-  CONSTRAINT `fk_order_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+  KEY `idx_order_email` (`buyer_email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='销售订单头';
 
 CREATE TABLE `sales_order_item` (
@@ -270,8 +263,7 @@ CREATE TABLE `sales_order_item` (
   PRIMARY KEY (`id`),
   KEY `idx_oi_order` (`order_id`),
   KEY `idx_oi_sku` (`sku_id`),
-  KEY `idx_oi_product` (`product_id`),
-  CONSTRAINT `fk_oi_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+  KEY `idx_oi_product` (`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='销售订单行（含标题快照）';
 
 CREATE TABLE `sales_order_address` (
@@ -287,8 +279,7 @@ CREATE TABLE `sales_order_address` (
   `address_line`    VARCHAR(255)    NOT NULL,
   `postal_code`     VARCHAR(32)     NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_order_addr_type` (`order_id`, `address_type`),
-  CONSTRAINT `fk_oa_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+  UNIQUE KEY `uk_order_addr_type` (`order_id`, `address_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单地址快照';
 
 CREATE TABLE `sales_order_payment` (
@@ -310,8 +301,7 @@ CREATE TABLE `sales_order_payment` (
   PRIMARY KEY (`id`),
   KEY `idx_op_order` (`order_id`),
   KEY `idx_op_status_expire` (`pay_status`, `expire_at`),
-  KEY `idx_op_third` (`third_party_trade_no`),
-  CONSTRAINT `fk_op_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+  KEY `idx_op_third` (`third_party_trade_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单支付单';
 
 CREATE TABLE `sales_order_shipment` (
@@ -328,8 +318,7 @@ CREATE TABLE `sales_order_shipment` (
   `updated_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `idx_os_order` (`order_id`),
-  KEY `idx_os_tracking` (`tracking_no`),
-  CONSTRAINT `fk_os_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+  KEY `idx_os_tracking` (`tracking_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单实体物流发货';
 
 CREATE TABLE `sales_order_esim` (
@@ -347,8 +336,7 @@ CREATE TABLE `sales_order_esim` (
   `updated_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `idx_oe_order` (`order_id`),
-  KEY `idx_oe_iccid` (`iccid`),
-  CONSTRAINT `fk_oe_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+  KEY `idx_oe_iccid` (`iccid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单 eSIM 数字履约';
 
 CREATE TABLE `sales_order_notice` (
@@ -359,8 +347,7 @@ CREATE TABLE `sales_order_notice` (
   `content`      TEXT            NOT NULL,
   `sent_at`      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `idx_on_order` (`order_id`),
-  CONSTRAINT `fk_on_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+  KEY `idx_on_order` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单客户通知记录';
 
 -- -----------------------------------------------------------------------------
@@ -397,8 +384,7 @@ CREATE TABLE `wallet_recharge` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_recharge_no` (`recharge_no`),
   KEY `idx_recharge_member` (`member_id`, `created_at`),
-  KEY `idx_recharge_status` (`status`),
-  CONSTRAINT `fk_recharge_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+  KEY `idx_recharge_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='余额充值单';
 
 CREATE TABLE `wallet_ledger` (
@@ -417,8 +403,7 @@ CREATE TABLE `wallet_ledger` (
   PRIMARY KEY (`id`),
   KEY `idx_wl_member_created` (`member_id`, `created_at`),
   KEY `idx_wl_ref` (`ref_type`, `ref_id`),
-  UNIQUE KEY `uk_wl_idempotent` (`member_id`, `biz_type`, `ref_type`, `ref_id`),
-  CONSTRAINT `fk_wl_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+  UNIQUE KEY `uk_wl_idempotent` (`member_id`, `biz_type`, `ref_type`, `ref_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='钱包余额流水（只追加）';
 
 -- -----------------------------------------------------------------------------
@@ -446,8 +431,7 @@ CREATE TABLE `member_subscription` (
   PRIMARY KEY (`id`),
   KEY `idx_sub_member_status` (`member_id`, `status`),
   KEY `idx_sub_expires` (`expires_at`),
-  KEY `idx_sub_order` (`order_id`),
-  CONSTRAINT `fk_sub_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+  KEY `idx_sub_order` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户已购套餐/号码资产';
 
 CREATE TABLE `supplier_channel` (
@@ -479,10 +463,7 @@ CREATE TABLE `supplier_sku_map` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_supplier_external` (`channel_id`, `external_plan_id`),
   KEY `idx_ssm_product` (`product_id`),
-  KEY `idx_ssm_sku` (`sku_id`),
-  CONSTRAINT `fk_ssm_channel` FOREIGN KEY (`channel_id`) REFERENCES `supplier_channel` (`id`),
-  CONSTRAINT `fk_ssm_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`),
-  CONSTRAINT `fk_ssm_sku` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`)
+  KEY `idx_ssm_sku` (`sku_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='本地商品与上游套餐映射';
 
 CREATE TABLE `fulfillment_task` (
@@ -499,8 +480,7 @@ CREATE TABLE `fulfillment_task` (
   `updated_at`      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `idx_ft_order` (`order_id`),
-  KEY `idx_ft_retry` (`task_status`, `next_retry_at`),
-  CONSTRAINT `fk_ft_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`)
+  KEY `idx_ft_retry` (`task_status`, `next_retry_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上游自动履约任务';
 
 -- -----------------------------------------------------------------------------
@@ -539,8 +519,7 @@ CREATE TABLE `coupon_usage` (
   PRIMARY KEY (`id`),
   KEY `idx_cu_coupon` (`coupon_id`),
   KEY `idx_cu_order` (`order_id`),
-  KEY `idx_cu_member` (`member_id`),
-  CONSTRAINT `fk_cu_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `coupon` (`id`)
+  KEY `idx_cu_member` (`member_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='优惠券占用/核销';
 
 CREATE TABLE `commission_config` (
@@ -610,8 +589,7 @@ CREATE TABLE `ticket` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_ticket_no` (`ticket_no`),
   KEY `idx_ticket_member` (`member_id`, `status`),
-  KEY `idx_ticket_status` (`status`, `updated_at`),
-  CONSTRAINT `fk_ticket_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+  KEY `idx_ticket_status` (`status`, `updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工单';
 
 CREATE TABLE `ticket_message` (
@@ -623,8 +601,7 @@ CREATE TABLE `ticket_message` (
   `content`       TEXT            NOT NULL,
   `created_at`    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `idx_tm_ticket` (`ticket_id`, `created_at`),
-  CONSTRAINT `fk_tm_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `ticket` (`id`) ON DELETE CASCADE
+  KEY `idx_tm_ticket` (`ticket_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工单消息';
 
 -- -----------------------------------------------------------------------------
@@ -647,8 +624,7 @@ CREATE TABLE `cms_faq` (
   `created_at`   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at`   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `idx_faq_cat` (`category_id`, `sort_order`),
-  CONSTRAINT `fk_faq_cat` FOREIGN KEY (`category_id`) REFERENCES `cms_faq_category` (`id`)
+  KEY `idx_faq_cat` (`category_id`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ';
 
 CREATE TABLE `cms_tutorial_category` (
@@ -672,8 +648,7 @@ CREATE TABLE `cms_tutorial` (
   `updated_at`    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_tutorial_slug` (`slug`),
-  KEY `idx_tutorial_cat` (`category_id`, `sort_order`),
-  CONSTRAINT `fk_tutorial_cat` FOREIGN KEY (`category_id`) REFERENCES `cms_tutorial_category` (`id`)
+  KEY `idx_tutorial_cat` (`category_id`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程';
 
 CREATE TABLE `cms_app_download` (
@@ -775,9 +750,7 @@ CREATE TABLE `i18n_product_category` (
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(128)    NOT NULL,
   `description`  VARCHAR(512)    NULL,
-  PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_i18n_product_category` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_product_category_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`category_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品分类文案';
 
 CREATE TABLE `i18n_product` (
@@ -789,18 +762,14 @@ CREATE TABLE `i18n_product` (
   `features`     TEXT            NULL COMMENT '特性说明',
   `notes`        TEXT            NULL COMMENT '重要说明',
   PRIMARY KEY (`product_id`, `locale`),
-  KEY `idx_i18n_product_name` (`locale`, `name`),
-  CONSTRAINT `fk_i18n_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_product_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  KEY `idx_i18n_product_name` (`locale`, `name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品文案';
 
 CREATE TABLE `i18n_product_sku` (
   `sku_id`   BIGINT UNSIGNED NOT NULL,
   `locale`   VARCHAR(16)     NOT NULL,
   `label`    VARCHAR(128)    NULL COMMENT '档位标签，如 Best Value',
-  PRIMARY KEY (`sku_id`, `locale`),
-  CONSTRAINT `fk_i18n_product_sku` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_product_sku_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`sku_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SKU 文案标签';
 
 CREATE TABLE `i18n_payment_channel` (
@@ -808,18 +777,14 @@ CREATE TABLE `i18n_payment_channel` (
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(64)     NOT NULL,
   `description`  VARCHAR(255)    NULL,
-  PRIMARY KEY (`channel_id`, `locale`),
-  CONSTRAINT `fk_i18n_payment_channel` FOREIGN KEY (`channel_id`) REFERENCES `payment_channel` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_payment_channel_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`channel_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付渠道文案';
 
 CREATE TABLE `i18n_cms_faq_category` (
   `category_id`  BIGINT UNSIGNED NOT NULL,
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(128)    NOT NULL,
-  PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_faq_category` FOREIGN KEY (`category_id`) REFERENCES `cms_faq_category` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_cms_faq_category_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`category_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 分类文案';
 
 CREATE TABLE `i18n_cms_faq` (
@@ -827,18 +792,14 @@ CREATE TABLE `i18n_cms_faq` (
   `locale`    VARCHAR(16)     NOT NULL,
   `question`  VARCHAR(500)    NOT NULL,
   `answer`    TEXT            NOT NULL,
-  PRIMARY KEY (`faq_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_faq` FOREIGN KEY (`faq_id`) REFERENCES `cms_faq` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_cms_faq_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`faq_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 文案';
 
 CREATE TABLE `i18n_cms_tutorial_category` (
   `category_id`  BIGINT UNSIGNED NOT NULL,
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(128)    NOT NULL,
-  PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_tutorial_category` FOREIGN KEY (`category_id`) REFERENCES `cms_tutorial_category` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_cms_tutorial_category_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`category_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程分类文案';
 
 CREATE TABLE `i18n_cms_tutorial` (
@@ -847,9 +808,7 @@ CREATE TABLE `i18n_cms_tutorial` (
   `title`        VARCHAR(255)    NOT NULL,
   `summary`      VARCHAR(512)    NULL,
   `content`      MEDIUMTEXT      NULL,
-  PRIMARY KEY (`tutorial_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_tutorial` FOREIGN KEY (`tutorial_id`) REFERENCES `cms_tutorial` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_cms_tutorial_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`tutorial_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程文案';
 
 CREATE TABLE `i18n_cms_app_download` (
@@ -857,9 +816,7 @@ CREATE TABLE `i18n_cms_app_download` (
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(128)    NOT NULL,
   `remark`       VARCHAR(255)    NULL,
-  PRIMARY KEY (`download_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_app_download` FOREIGN KEY (`download_id`) REFERENCES `cms_app_download` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_cms_app_download_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`download_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='App 下载文案';
 
 CREATE TABLE `i18n_sys_email_template` (
@@ -868,7 +825,5 @@ CREATE TABLE `i18n_sys_email_template` (
   `name`         VARCHAR(128)    NOT NULL,
   `subject`      VARCHAR(255)    NOT NULL,
   `body`         MEDIUMTEXT      NOT NULL,
-  PRIMARY KEY (`template_id`, `locale`),
-  CONSTRAINT `fk_i18n_sys_email_template` FOREIGN KEY (`template_id`) REFERENCES `sys_email_template` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_i18n_sys_email_template_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
+  PRIMARY KEY (`template_id`, `locale`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮件模板文案';
