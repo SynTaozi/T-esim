@@ -1,0 +1,124 @@
+/**
+ * 首页专属视觉增强（不影响其他页面）
+ */
+
+.home-page--enhanced {
+  background: #ffffff;
+}
+
+.home-page--enhanced .hero {
+  position: relative;
+}
+
+.home-page--enhanced .hero-signal-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.home-page--enhanced .hero-signal-grid {
+  position: absolute;
+  inset: -20% -10%;
+  background-image:
+    linear-gradient(color-mix(in srgb, #0059b5 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, #0059b5 7%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 30% 40%, #000 20%, transparent 72%);
+  opacity: 0.55;
+}
+
+.home-page--enhanced .hero-signal-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+}
+
+.home-page--enhanced .hero-signal-orb--1 {
+  width: 280px;
+  height: 280px;
+  top: -40px;
+  right: 12%;
+  background: color-mix(in srgb, #0071e3 22%, transparent);
+}
+
+.home-page--enhanced .hero-signal-orb--2 {
+  width: 200px;
+  height: 200px;
+  bottom: 10%;
+  left: 8%;
+  background: color-mix(in srgb, #60a5fa 18%, transparent);
+}
+
+.home-page--enhanced .hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.home-page--enhanced .hero-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #0071e3 10%, #fff);
+  border: 1px solid color-mix(in srgb, #0071e3 18%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, #0071e3 8%, transparent);
+}
+
+.home-page--enhanced .hero-label::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #34c759 25%, transparent);
+}
+
+.home-page--enhanced .hero-title-accent {
+  background: linear-gradient(135deg, #0059b5 0%, #0071e3 55%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.home-page--enhanced .destinations,
+.home-page--enhanced .ecosystem-section {
+  background: transparent;
+}
+
+.home-page--enhanced .section-title {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 10px;
+}
+
+.home-page--enhanced .section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #0059b5, #60a5fa);
+}
+
+.home-page--enhanced .bento-info {
+  border: 1px solid color-mix(in srgb, #0071e3 14%, var(--outline-variant));
+  box-shadow: 0 8px 28px color-mix(in srgb, #0059b5 10%, transparent);
+}
+
+.home-page--enhanced .bento-card:hover {
+  box-shadow: 0 12px 32px color-mix(in srgb, #0059b5 14%, transparent);
+}
+
+.home-page--enhanced .eco-card--featured {
+  background: linear-gradient(145deg, #0f3d7a 0%, #0059b5 45%, #0071e3 100%);
+  box-shadow: 0 12px 36px color-mix(in srgb, #0059b5 28%, transparent);
+}
+
+.home-page--enhanced .eco-card:not(.eco-card--featured):hover {
+  border-color: color-mix(in srgb, #0071e3 35%, var(--outline-variant));
+}

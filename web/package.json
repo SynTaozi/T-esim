@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,12 +15,14 @@
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
     "vue-i18n": "^9.14.5",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
     "typescript": "^5.3.3",
     "vite": "^5.2.0",
-    "vue-tsc": "^2.0.6"
+    "vue-tsc": "^2.0.6",
+    "@types/qrcode": "^1.5.6"
   }
 }

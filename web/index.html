@@ -1,10 +1,94 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-CN">
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + Vue + TS</title>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="ts6sXA7z0a6nHguky5tk7pKbY0wS_eTvHfYFi3o6gVo" />
+    <meta name="description" content="Tesim 提供全球 eSIM 与实体 SIM 卡，覆盖多国家地区，即买即用；支持即买即用，覆盖多国家地区。">
+    <meta name="robots" content="index, follow">
+    <meta property="og:site_name" content="Tesim">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Tesim - 全球 eSIM 与实体卡">
+    <meta property="og:description" content="全球 eSIM 即时开通，实体卡同步可选。覆盖多国家地区，即买即用。">
+    <meta property="og:url" content="https://www.tesim.com/">
+    <meta property="og:image" content="https://www.tesim.com/logo.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tesim - 全球 eSIM 与实体卡">
+    <meta name="twitter:description" content="全球 eSIM 即时开通，实体卡同步可选。覆盖多国家地区，即买即用。">
+    <meta name="twitter:image" content="https://www.tesim.com/logo.png">
+    <link rel="canonical" href="https://www.tesim.com/">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
+    <title>Tesim - 全球 eSIM 与实体卡</title>
+    <style>
+      :root {
+        --primary:             #0059b5;
+        --primary-container:   #0071e3;
+        --on-primary:          #ffffff;
+        --on-background:       #1a1b1f;
+        --on-surface-variant:  #414753;
+        --surface-container-lowest:  #ffffff;
+        --surface-variant:     #e3e2e7;
+        --outline:             #717785;
+        --radius-full:         9999px;
+        --font-body:           'Manrope', system-ui, -apple-system, sans-serif;
+        --font-headline:       'Manrope', system-ui, -apple-system, sans-serif;
+        --shadow-xl:           0 20px 50px rgba(0,89,181,0.12);
+        --background:          #faf8fe;
+        --text-primary:        #1D1D1D;
+        --text-secondary:      #86868B;
+        --bg-primary:          #FFFFFF;
+        --border-default:      #F5F5F7;
+        --font-family:         -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+      }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #ffffff;
+        color: var(--text-primary);
+        font-family: var(--font-family);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #app {
+        min-height: 100%;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+
+      html.styles-ready #app {
+        opacity: 1;
+      }
+
+      /* 图标字体未就绪前隐藏 ligature 明文（如 wifi/search），避免与中文并排像乱码 */
+      .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        font-weight: normal;
+        font-style: normal;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        font-feature-settings: 'liga';
+        -webkit-font-smoothing: antialiased;
+        opacity: 0;
+        width: 1em;
+        height: 1em;
+        overflow: hidden;
+        vertical-align: middle;
+      }
+      html.ms-icons-ready .material-symbols-outlined {
+        opacity: 1;
+        overflow: visible;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>

@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Private user/account pages — no indexing needed
+Disallow: /login
+Disallow: /register
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-confirm
+Disallow: /orders
+Disallow: /order/
+Disallow: /profile
+Disallow: /recharge
+Disallow: /payment-confirm
+Disallow: /tickets
+Disallow: /ticket/
+Disallow: /pay/
+Disallow: /commission
+
+Sitemap: https://www.mocsim.com/sitemap.xml
