@@ -52,15 +52,20 @@ CREATE TABLE `member` (
   `settlement_days_override`   INT             NULL,
   `min_withdrawal_override`    DECIMAL(12,2)   NULL,
   `max_withdrawal_override`    DECIMAL(12,2)   NULL,
+  `version`                    INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '乐观锁，改余额时 +1',
   `created_at`                 DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at`                 DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `deleted`                    TINYINT(1)      NOT NULL DEFAULT 0,
+  -- 软删后允许复用原用户名/邮箱：仅未删除行参与唯一
+  `username_active`            VARCHAR(64)     AS (IF(`deleted` = 0, `username`, NULL)) STORED,
+  `email_active`               VARCHAR(128)    AS (IF(`deleted` = 0, `email`, NULL)) STORED,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_member_username` (`username`),
-  UNIQUE KEY `uk_member_email` (`email`),
+  UNIQUE KEY `uk_member_username_active` (`username_active`),
+  UNIQUE KEY `uk_member_email_active` (`email_active`),
   UNIQUE KEY `uk_member_referral` (`referral_code`),
   KEY `idx_member_referred_by` (`referred_by`),
-  KEY `idx_member_status` (`status`)
+  KEY `idx_member_status` (`status`),
+  CONSTRAINT `fk_member_referred_by` FOREIGN KEY (`referred_by`) REFERENCES `member` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会员';
 
 CREATE TABLE `member_address` (
@@ -138,8 +143,9 @@ CREATE TABLE `product` (
   `created_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `deleted`            TINYINT(1)      NOT NULL DEFAULT 0,
+  `spu_code_active`    VARCHAR(64)     AS (IF(`deleted` = 0, `spu_code`, NULL)) STORED,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_product_spu` (`spu_code`),
+  UNIQUE KEY `uk_product_spu_active` (`spu_code_active`),
   KEY `idx_product_cat_status_sort` (`category_id`, `status`, `sort_order`),
   KEY `idx_product_kind_status` (`product_kind`, `status`),
   KEY `idx_product_hot` (`is_hot`, `status`),
@@ -163,6 +169,7 @@ CREATE TABLE `product_sku` (
   `updated_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_sku_code` (`sku_code`),
+  -- PLAN：months 必填且同 SPU 不重复；DEVICE：months 置 NULL，MySQL 允许多条 NULL
   UNIQUE KEY `uk_sku_product_months` (`product_id`, `months`),
   KEY `idx_sku_product_status` (`product_id`, `status`, `sort_order`),
   CONSTRAINT `fk_sku_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
@@ -253,6 +260,8 @@ CREATE TABLE `sales_order_item` (
   `title_zh`           VARCHAR(255)    NOT NULL COMMENT '下单快照·中文名（非目录 i18n）',
   `title_en`           VARCHAR(255)    NULL COMMENT '下单快照·英文名',
   `months`             INT             NULL,
+  `validity_days`      INT             NULL COMMENT '下单快照·有效天数',
+  `renewal_price`      DECIMAL(12,2)   NULL COMMENT '下单快照·续费价',
   `quantity`           INT             NOT NULL DEFAULT 1,
   `unit_price`         DECIMAL(12,2)   NOT NULL,
   `price_per_month`    DECIMAL(12,2)   NULL,
@@ -313,7 +322,6 @@ CREATE TABLE `sales_order_shipment` (
   `tracking_no`        VARCHAR(128)    NULL,
   `shipping_phone`     VARCHAR(32)     NULL,
   `shipping_remark`    VARCHAR(500)    NULL,
-  `esim_qr_payload`    TEXT            NULL COMMENT 'eSIM 激活信息/二维码内容',
   `shipped_at`         DATETIME(3)     NULL,
   `email_sent`         TINYINT(1)      NOT NULL DEFAULT 0,
   `created_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -322,7 +330,26 @@ CREATE TABLE `sales_order_shipment` (
   KEY `idx_os_order` (`order_id`),
   KEY `idx_os_tracking` (`tracking_no`),
   CONSTRAINT `fk_os_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单发货/履约物流';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单实体物流发货';
+
+CREATE TABLE `sales_order_esim` (
+  `id`                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id`           BIGINT UNSIGNED NOT NULL,
+  `order_item_id`      BIGINT UNSIGNED NULL,
+  `activation_code`    VARCHAR(255)    NULL,
+  `qr_payload`         TEXT            NULL COMMENT 'eSIM 二维码/激活内容',
+  `iccid`              VARCHAR(64)     NULL,
+  `status`             VARCHAR(32)     NOT NULL DEFAULT 'PENDING'
+                       COMMENT 'PENDING/READY/DELIVERED/ACTIVATED/FAILED',
+  `email_sent`         TINYINT(1)      NOT NULL DEFAULT 0,
+  `delivered_at`       DATETIME(3)     NULL,
+  `created_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at`         DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_oe_order` (`order_id`),
+  KEY `idx_oe_iccid` (`iccid`),
+  CONSTRAINT `fk_oe_order` FOREIGN KEY (`order_id`) REFERENCES `sales_order` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单 eSIM 数字履约';
 
 CREATE TABLE `sales_order_notice` (
   `id`           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -373,6 +400,26 @@ CREATE TABLE `wallet_recharge` (
   KEY `idx_recharge_status` (`status`),
   CONSTRAINT `fk_recharge_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='余额充值单';
+
+CREATE TABLE `wallet_ledger` (
+  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `member_id`        BIGINT UNSIGNED NOT NULL,
+  `biz_type`         VARCHAR(32)     NOT NULL
+                     COMMENT 'RECHARGE/ORDER_PAY/ORDER_REFUND/COMMISSION_TO_BALANCE/ADJUST',
+  `direction`        TINYINT         NOT NULL COMMENT '1入账 -1出账',
+  `amount`           DECIMAL(12,2)   NOT NULL COMMENT '变动绝对值 USD',
+  `balance_after`    DECIMAL(12,2)   NOT NULL COMMENT '变动后钱包余额',
+  `ref_type`         VARCHAR(32)     NULL COMMENT 'ORDER/RECHARGE/WITHDRAWAL/...',
+  `ref_id`           BIGINT UNSIGNED NULL,
+  `ref_no`           VARCHAR(64)     NULL,
+  `remark`           VARCHAR(255)    NULL,
+  `created_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_wl_member_created` (`member_id`, `created_at`),
+  KEY `idx_wl_ref` (`ref_type`, `ref_id`),
+  UNIQUE KEY `uk_wl_idempotent` (`member_id`, `biz_type`, `ref_type`, `ref_id`),
+  CONSTRAINT `fk_wl_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='钱包余额流水（只追加）';
 
 -- -----------------------------------------------------------------------------
 -- FUL · 履约资产 / 上游供应商
@@ -430,10 +477,12 @@ CREATE TABLE `supplier_sku_map` (
   `created_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_supplier_map` (`channel_id`, `product_id`, `sku_id`),
+  UNIQUE KEY `uk_supplier_external` (`channel_id`, `external_plan_id`),
   KEY `idx_ssm_product` (`product_id`),
+  KEY `idx_ssm_sku` (`sku_id`),
   CONSTRAINT `fk_ssm_channel` FOREIGN KEY (`channel_id`) REFERENCES `supplier_channel` (`id`),
-  CONSTRAINT `fk_ssm_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
+  CONSTRAINT `fk_ssm_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`),
+  CONSTRAINT `fk_ssm_sku` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='本地商品与上游套餐映射';
 
 CREATE TABLE `fulfillment_task` (
@@ -727,7 +776,8 @@ CREATE TABLE `i18n_product_category` (
   `name`         VARCHAR(128)    NOT NULL,
   `description`  VARCHAR(512)    NULL,
   PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_i18n_product_category` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_product_category` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_product_category_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品分类文案';
 
 CREATE TABLE `i18n_product` (
@@ -740,7 +790,8 @@ CREATE TABLE `i18n_product` (
   `notes`        TEXT            NULL COMMENT '重要说明',
   PRIMARY KEY (`product_id`, `locale`),
   KEY `idx_i18n_product_name` (`locale`, `name`),
-  CONSTRAINT `fk_i18n_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_product_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品文案';
 
 CREATE TABLE `i18n_product_sku` (
@@ -748,7 +799,8 @@ CREATE TABLE `i18n_product_sku` (
   `locale`   VARCHAR(16)     NOT NULL,
   `label`    VARCHAR(128)    NULL COMMENT '档位标签，如 Best Value',
   PRIMARY KEY (`sku_id`, `locale`),
-  CONSTRAINT `fk_i18n_product_sku` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_product_sku` FOREIGN KEY (`sku_id`) REFERENCES `product_sku` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_product_sku_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SKU 文案标签';
 
 CREATE TABLE `i18n_payment_channel` (
@@ -757,7 +809,8 @@ CREATE TABLE `i18n_payment_channel` (
   `name`         VARCHAR(64)     NOT NULL,
   `description`  VARCHAR(255)    NULL,
   PRIMARY KEY (`channel_id`, `locale`),
-  CONSTRAINT `fk_i18n_payment_channel` FOREIGN KEY (`channel_id`) REFERENCES `payment_channel` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_payment_channel` FOREIGN KEY (`channel_id`) REFERENCES `payment_channel` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_payment_channel_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付渠道文案';
 
 CREATE TABLE `i18n_cms_faq_category` (
@@ -765,7 +818,8 @@ CREATE TABLE `i18n_cms_faq_category` (
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(128)    NOT NULL,
   PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_faq_category` FOREIGN KEY (`category_id`) REFERENCES `cms_faq_category` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_cms_faq_category` FOREIGN KEY (`category_id`) REFERENCES `cms_faq_category` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_cms_faq_category_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 分类文案';
 
 CREATE TABLE `i18n_cms_faq` (
@@ -774,7 +828,8 @@ CREATE TABLE `i18n_cms_faq` (
   `question`  VARCHAR(500)    NOT NULL,
   `answer`    TEXT            NOT NULL,
   PRIMARY KEY (`faq_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_faq` FOREIGN KEY (`faq_id`) REFERENCES `cms_faq` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_cms_faq` FOREIGN KEY (`faq_id`) REFERENCES `cms_faq` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_cms_faq_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FAQ 文案';
 
 CREATE TABLE `i18n_cms_tutorial_category` (
@@ -782,7 +837,8 @@ CREATE TABLE `i18n_cms_tutorial_category` (
   `locale`       VARCHAR(16)     NOT NULL,
   `name`         VARCHAR(128)    NOT NULL,
   PRIMARY KEY (`category_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_tutorial_category` FOREIGN KEY (`category_id`) REFERENCES `cms_tutorial_category` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_cms_tutorial_category` FOREIGN KEY (`category_id`) REFERENCES `cms_tutorial_category` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_cms_tutorial_category_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程分类文案';
 
 CREATE TABLE `i18n_cms_tutorial` (
@@ -792,7 +848,8 @@ CREATE TABLE `i18n_cms_tutorial` (
   `summary`      VARCHAR(512)    NULL,
   `content`      MEDIUMTEXT      NULL,
   PRIMARY KEY (`tutorial_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_tutorial` FOREIGN KEY (`tutorial_id`) REFERENCES `cms_tutorial` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_cms_tutorial` FOREIGN KEY (`tutorial_id`) REFERENCES `cms_tutorial` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_cms_tutorial_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教程文案';
 
 CREATE TABLE `i18n_cms_app_download` (
@@ -801,7 +858,8 @@ CREATE TABLE `i18n_cms_app_download` (
   `name`         VARCHAR(128)    NOT NULL,
   `remark`       VARCHAR(255)    NULL,
   PRIMARY KEY (`download_id`, `locale`),
-  CONSTRAINT `fk_i18n_cms_app_download` FOREIGN KEY (`download_id`) REFERENCES `cms_app_download` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_cms_app_download` FOREIGN KEY (`download_id`) REFERENCES `cms_app_download` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_cms_app_download_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='App 下载文案';
 
 CREATE TABLE `i18n_sys_email_template` (
@@ -811,5 +869,6 @@ CREATE TABLE `i18n_sys_email_template` (
   `subject`      VARCHAR(255)    NOT NULL,
   `body`         MEDIUMTEXT      NOT NULL,
   PRIMARY KEY (`template_id`, `locale`),
-  CONSTRAINT `fk_i18n_sys_email_template` FOREIGN KEY (`template_id`) REFERENCES `sys_email_template` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_i18n_sys_email_template` FOREIGN KEY (`template_id`) REFERENCES `sys_email_template` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_i18n_sys_email_template_locale` FOREIGN KEY (`locale`) REFERENCES `sys_locale` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮件模板文案';

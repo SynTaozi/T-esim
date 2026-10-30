@@ -58,26 +58,31 @@ product_category ── i18n_product_category
 
 ```
 sales_order
-  ├─ sales_order_item      （含 title_zh / title_en 快照）
+  ├─ sales_order_item      （含 title_zh / title_en / validity_days 快照）
   ├─ sales_order_address
   ├─ sales_order_payment
-  └─ sales_order_shipment
+  ├─ sales_order_shipment  （实体物流）
+  └─ sales_order_esim      （数字履约：二维码 / ICCID）
 ```
 
-## 4. 金额
+## 4. 金额与约束约定
 
 - 货币：`USD`（`currency` 预留）
 - 金额：`DECIMAL(12,2)`
+- 钱包：`member.wallet_balance` + 只追加流水 `wallet_ledger`；改余额用 `member.version` 乐观锁
+- 软删唯一：`member` / `product` 用生成列 `*_active`，软删后可复用用户名/邮箱/SPU
+- SKU 月档唯一：`UNIQUE (product_id, months)`；套餐必须填 `months`，设备类置 `NULL`（多规格互不冲突）
 
 ## 5. 功能覆盖
 
 | 能力 | 表 |
 |------|-----|
 | 语言字典 | `sys_locale`（seed：zh / en） |
-| 用户/余额/邀请 | `member` |
+| 用户/余额/邀请 | `member` + `wallet_ledger` |
 | 地址 | `member_address` |
 | 分类/商品/SKU/覆盖国 | `product_*` + `i18n_product*` |
 | 购物车/订单 | `cart_item` / `sales_order*` |
+| 实体物流 / eSIM | `sales_order_shipment` / `sales_order_esim` |
 | 支付/充值 | `payment_channel` + `i18n_payment_channel` / `wallet_recharge` |
 | 已购资产/上游 | `member_subscription` / `supplier_*` / `fulfillment_task` |
 | 券/佣金 | `coupon*` / `commission_*` |
