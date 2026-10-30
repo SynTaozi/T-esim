@@ -4,21 +4,12 @@ server:
 spring:
   application:
     name: t-esim
-  # 数据库稍后创建，此处仅占位，勿提交真实密码
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3306/t_esim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: root
-    password: change-me
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  data:
-    redis:
-      host: 127.0.0.1
-      port: 6379
-      database: 0
-      # password:
+  profiles:
+    active: dev
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.tesim.entity
   configuration:
     map-underscore-to-camel-case: true
   global-config:
