@@ -22,7 +22,6 @@
         <router-link to="/faq" :class="{ active: isActiveRoute('/faq') }" @click="onNavClick">{{ $t('nav.faq') }}</router-link>
         <router-link to="/tutorials" :class="{ active: isActiveRoute('/tutorials') }" @click="onNavClick">{{ $t('nav.tutorials') }}</router-link>
         <router-link to="/about" :class="{ active: isActiveRoute('/about') }" @click="onNavClick">{{ $t('nav.about') }}</router-link>
-        <router-link to="/tickets" :class="{ active: isTicketsActive() }" @click="onNavClick">{{ $t('nav.tickets') }}</router-link>
         <router-link to="/contact" :class="{ active: isActiveRoute('/contact') }" @click="onNavClick">{{ $t('nav.contactUs') }}</router-link>
         <div class="mobile-actions">
           <button
@@ -120,10 +119,6 @@ function onNavClick() {
 
 function isActiveRoute(path: string): boolean {
   return route.path === path || route.path.startsWith(path + '/')
-}
-
-function isTicketsActive(): boolean {
-  return route.path.startsWith('/ticket') || route.path.startsWith('/tickets')
 }
 </script>
 

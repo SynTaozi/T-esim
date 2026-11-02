@@ -8,8 +8,16 @@ spring:
     name: t-esim
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 25MB
 
 tesim:
+  upload:
+    dir: uploads
+    public-path: /uploads
+    max-bytes: 5242880
   jwt:
     secret: tesim-dev-jwt-secret-change-me-32bytes-min
     expire-hours: 168

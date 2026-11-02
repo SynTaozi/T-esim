@@ -59,29 +59,22 @@
             />
           </el-form-item>
 
-          <!-- 附件上传 -->
-          <el-form-item :label="$t('newTicket.attachments')">
+          <el-form-item :label="$t('newTicket.uploadImages')">
             <div class="upload-section">
               <el-upload
                 v-model:file-list="fileList"
+                list-type="picture-card"
                 :auto-upload="false"
                 :on-exceed="handleExceed"
                 :before-upload="beforeUpload"
                 :on-preview="handlePreview"
-                :on-remove="handleRemove"
                 :limit="5"
                 multiple
-                accept="image/*,.pdf,.doc,.docx,.txt,.zip"
-                drag
-                class="upload-dragger"
+                accept="image/jpeg,image/png,image/gif,image/webp"
               >
-                <div class="upload-content">
-                  <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                  <p class="upload-text">{{ $t('newTicket.clickOrDrag') }}</p>
-                  <p class="upload-hint">{{ $t('newTicket.maxFilesHint') }}</p>
-                </div>
+                <el-icon><Plus /></el-icon>
               </el-upload>
-              <!-- 图片预览 -->
+              <p class="upload-hint">{{ $t('newTicket.imageUploadHint') }}</p>
               <el-image-viewer
                 v-if="previewVisible"
                 :url-list="previewUrls"
@@ -108,11 +101,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { UploadFile, UploadFiles, UploadRawFile } from 'element-plus'
-import { ArrowLeft, UploadFilled } from '@element-plus/icons-vue'
+import type { UploadFile, UploadRawFile } from 'element-plus'
+import { ArrowLeft, Plus } from '@element-plus/icons-vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import { createTicket } from '@/api/ticket'
+import { createTicket, uploadTicketImage } from '@/api/ticket'
 import { orderApi } from '@/api/order'
 import { useAuthStore } from '@/stores/auth'
 import { navigateToLogin } from '@/utils/authNavigation'
@@ -173,7 +166,12 @@ const rules: FormRules = {
 }
 
 function beforeUpload(rawFile: UploadRawFile): boolean {
-  if (rawFile.size > 10 * 1024 * 1024) {
+  const okType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(rawFile.type)
+  if (!okType) {
+    ElMessage.error(t('newTicket.imageTypeError'))
+    return false
+  }
+  if (rawFile.size > 5 * 1024 * 1024) {
     ElMessage.error(t('newTicket.fileSizeError'))
     return false
   }
@@ -185,78 +183,53 @@ function handleExceed() {
 }
 
 function handlePreview(file: UploadFile) {
-  const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
-  if (file.raw && imageTypes.includes(file.raw.type)) {
-    const url = URL.createObjectURL(file.raw)
-    previewUrls.value = [url]
-    previewIndex.value = 0
-    previewVisible.value = true
+  if (file.url) {
+    previewUrls.value = [file.url]
+  } else if (file.raw) {
+    previewUrls.value = [URL.createObjectURL(file.raw)]
+  } else {
+    return
   }
-}
-
-function handleRemove(_file: UploadFile, _uploadFiles: UploadFiles) {
-  // file list managed by el-upload v-model
+  previewIndex.value = 0
+  previewVisible.value = true
 }
 
 async function handleSubmit() {
   if (!formRef.value) return
 
   await formRef.value.validate(async (valid) => {
-    if (valid) {
-      submitting.value = true
-      try {
-        // Build FormData to support file attachments
-        const hasFiles = fileList.value.length > 0
-        if (hasFiles) {
-          const formData = new FormData()
-          formData.append('type', form.type)
-          formData.append('priority', form.priority)
-          if (form.orderId !== null) formData.append('orderId', String(form.orderId))
-          formData.append('subject', form.subject)
-          formData.append('content', form.content)
-          fileList.value.forEach((f) => {
-            if (f.raw) formData.append('attachments', f.raw, f.name)
-          })
-          // Try multipart upload; fallback to JSON if API doesn't support it
-          try {
-            const { default: api } = await import('@/api/index')
-            await api.post('/tickets/upload', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            })
-          } catch {
-            // Fallback: submit without attachments
-            await createTicket({
-              type: form.type,
-              priority: form.priority,
-              orderId: form.orderId,
-              subject: form.subject,
-              content: form.content
-            })
-          }
-        } else {
-          await createTicket({
-            type: form.type,
-            priority: form.priority,
-            orderId: form.orderId,
-            subject: form.subject,
-            content: form.content
-          })
-        }
-        ElMessage.success(t('newTicket.submitSuccess'))
-        router.push('/tickets')
-      } catch (err: any) {
-        if (err.code === 401 || (err.response && err.response.status === 401)) {
-          authStore.logout()
-          ElMessageBox.alert(t('newTicket.loginExpired'), t('common.warning'), {
-            confirmButtonText: t('common.confirm'),
-            type: 'warning'
-          }).then(() => navigateToLogin(router, route)).catch(() => navigateToLogin(router, route))
-        } else {
-          ElMessage.error(err.message || t('newTicket.submitFailed'))
-        }
-      } finally {
-        submitting.value = false
+    if (!valid) return
+    submitting.value = true
+    try {
+      const imageUrls: string[] = []
+      for (const f of fileList.value) {
+        if (!f.raw) continue
+        const res: any = await uploadTicketImage(f.raw)
+        const url = res?.data?.url || res?.url
+        if (url) imageUrls.push(url)
       }
+      await createTicket({
+        type: form.type,
+        priority: form.priority,
+        orderId: form.orderId,
+        subject: form.subject,
+        content: form.content,
+        imageUrls
+      })
+      ElMessage.success(t('newTicket.submitSuccess'))
+      router.push({ path: '/profile', query: { tab: 'tickets' } })
+    } catch (err: any) {
+      if (err.code === 401 || (err.response && err.response.status === 401)) {
+        authStore.logout()
+        ElMessageBox.alert(t('newTicket.loginExpired'), t('common.warning'), {
+          confirmButtonText: t('common.confirm'),
+          type: 'warning'
+        }).then(() => navigateToLogin(router, route)).catch(() => navigateToLogin(router, route))
+      } else {
+        ElMessage.error(err.message || t('newTicket.submitFailed'))
+      }
+    } finally {
+      submitting.value = false
     }
   })
 }

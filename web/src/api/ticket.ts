@@ -4,6 +4,16 @@ export function createTicket(data: any) {
   return api.post('/tickets', data)
 }
 
+/** 先上传图片，再把返回的 url 放进 createTicket.imageUrls */
+export function uploadTicketImage(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('scene', 'tickets')
+  return api.post('/files/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
 export function getTickets(params?: any) {
   return api.get('/tickets', { params })
 }

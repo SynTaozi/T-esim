@@ -34,12 +34,23 @@
               <span class="content-time">{{ ticket.createdAt }}</span>
             </div>
             <div class="content-body">
-              {{ ticket.content }}
+              <p class="content-text">{{ mainMessage.text }}</p>
+              <div v-if="mainMessage.images.length" class="content-images">
+                <el-image
+                  v-for="(src, i) in mainMessage.images"
+                  :key="src + i"
+                  :src="src"
+                  :preview-src-list="mainMessage.images"
+                  :initial-index="i"
+                  fit="cover"
+                  class="msg-image"
+                />
+              </div>
             </div>
           </div>
 
           <div
-            v-for="(msg, idx) in ticket.replies || []"
+            v-for="(msg, idx) in replyMessages"
             :key="msg.id || idx"
             class="content-item"
             :class="msg.admin ? 'admin-content' : 'user-content'"
@@ -61,7 +72,18 @@
               <span class="content-time">{{ msg.createdAt }}</span>
             </div>
             <div class="content-body">
-              {{ msg.content }}
+              <p class="content-text">{{ msg.parsed.text }}</p>
+              <div v-if="msg.parsed.images.length" class="content-images">
+                <el-image
+                  v-for="(src, i) in msg.parsed.images"
+                  :key="src + i"
+                  :src="src"
+                  :preview-src-list="msg.parsed.images"
+                  :initial-index="i"
+                  fit="cover"
+                  class="msg-image"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -91,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -100,6 +122,7 @@ import SiteHeader from '@/components/SiteHeader.vue'
 import { getTicketById, followUpTicket } from '@/api/ticket'
 import { useAuthStore } from '@/stores/auth'
 import { navigateToLogin } from '@/utils/authNavigation'
+import { splitTicketContent } from '@/utils/ticketContent'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -109,8 +132,16 @@ const ticket = ref<any>(null)
 const followUpContent = ref('')
 const submitting = ref(false)
 
+const mainMessage = computed(() => splitTicketContent(ticket.value?.content))
+const replyMessages = computed(() =>
+  (ticket.value?.replies || []).map((msg: any) => ({
+    ...msg,
+    parsed: splitTicketContent(msg.content)
+  }))
+)
+
 function goBack() {
-  router.push('/profile?ticket=true')
+  router.push({ path: '/profile', query: { tab: 'tickets' } })
 }
 
 function getTypeText(type: string) {
@@ -352,7 +383,27 @@ onMounted(() => {
 .content-body {
   line-height: 1.8;
   color: var(--text-secondary);
+}
+
+.content-text {
+  margin: 0;
   white-space: pre-wrap;
+}
+
+.content-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.msg-image {
+  width: 112px;
+  height: 112px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  cursor: zoom-in;
 }
 
 .follow-up {

@@ -160,6 +160,11 @@ onMounted(async () => {
   box-sizing: border-box;
 }
 
+html {
+  /* 避免有无纵向滚动条时整页（含固定顶栏）左右跳动 */
+  scrollbar-gutter: stable;
+}
+
 html, body, #app {
   height: 100%;
   font-family: var(--font-family);

@@ -31,10 +31,13 @@ canvas {
   height: auto;
 }
 
-/* 全站内容区宽度（与顶栏 header-content 对齐）
- * 大屏略加宽但保持克制占比；首页单独更窄 */
+/* 全站内容区宽度
+ * --site-chrome-max-width：顶栏/底栏专用，页面不得覆盖（避免首页收窄导致 logo 跳动）
+ * --site-home-max-width：仅首页正文更窄
+ * --site-content-max-width：各页内容区（首页内会覆盖为 home 宽度） */
 :root {
   --site-content-max-width: 1180px;
+  --site-chrome-max-width: 1180px;
   --site-home-max-width: 1080px;
   --site-content-padding-x: 24px;
   --site-profile-sidebar-width: 280px;
@@ -43,6 +46,7 @@ canvas {
 @media (min-width: 1600px) {
   :root {
     --site-content-max-width: 1260px;
+    --site-chrome-max-width: 1260px;
     --site-home-max-width: 1140px;
     --site-content-padding-x: 28px;
     --site-profile-sidebar-width: 292px;
@@ -52,6 +56,7 @@ canvas {
 @media (min-width: 1920px) {
   :root {
     --site-content-max-width: min(1320px, 68vw);
+    --site-chrome-max-width: min(1320px, 68vw);
     --site-home-max-width: min(1200px, 60vw);
     --site-content-padding-x: clamp(28px, 2.2vw, 36px);
     --site-profile-sidebar-width: 300px;
@@ -61,6 +66,7 @@ canvas {
 @media (min-width: 2560px) {
   :root {
     --site-content-max-width: min(1380px, 52vw);
+    --site-chrome-max-width: min(1380px, 52vw);
     --site-home-max-width: min(1240px, 46vw);
     --site-content-padding-x: clamp(32px, 2.5vw, 44px);
   }
@@ -229,6 +235,11 @@ a:hover {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
 }
 
+/* 顶栏容器锁定全站 chrome 宽度，避免继承首页更窄的 --site-content-max-width */
+.site-header .container {
+  max-width: var(--site-chrome-max-width, 1180px);
+}
+
 .site-header .logo-text {
   font-size: 20px;
   font-weight: 700;
@@ -385,6 +396,10 @@ a:hover {
 footer.site-footer {
   border-top: none !important;
   box-shadow: none !important;
+}
+
+footer.site-footer .container {
+  max-width: var(--site-chrome-max-width, 1180px);
 }
 
 /* 响应式 */

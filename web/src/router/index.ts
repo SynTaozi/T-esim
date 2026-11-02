@@ -249,9 +249,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/tickets',
-    name: 'Tickets',
-    component: () => import('@/views/Tickets.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    redirect: { path: '/profile', query: { tab: 'tickets' } }
   },
   {
     path: '/ticket/new',

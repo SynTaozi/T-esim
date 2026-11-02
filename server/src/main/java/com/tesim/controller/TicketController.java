@@ -21,22 +21,6 @@ public class TicketController {
         return ApiResponse.ok(ticketAppService.create(req));
     }
 
-    @PostMapping("/upload")
-    public ApiResponse<TicketVO> createUpload(
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String priority,
-            @RequestParam(required = false) Long orderId,
-            @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String content) {
-        CreateTicketRequest req = new CreateTicketRequest();
-        req.setType(type);
-        req.setPriority(priority);
-        req.setOrderId(orderId);
-        req.setSubject(subject);
-        req.setContent(content);
-        return ApiResponse.ok(ticketAppService.create(req));
-    }
-
     @GetMapping
     public ApiResponse<PageResult<TicketVO>> list(
             @RequestParam(required = false) Integer page,

@@ -13,6 +13,8 @@ Thumbs.db
 server/target/
 server/.mvn/
 server/logs/
+server/uploads/
+uploads/
 *.class
 *.jar
 *.war

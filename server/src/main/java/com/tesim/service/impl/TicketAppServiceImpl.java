@@ -60,7 +60,7 @@ public class TicketAppServiceImpl implements TicketAppService {
         msg.setSenderType("USER");
         msg.setSenderId(memberId);
         msg.setSenderName("User");
-        msg.setContent(content);
+        msg.setContent(appendImageUrls(content, req.getImageUrls()));
         ticketMessageService.save(msg);
 
         return toFront(ticket, true);
@@ -170,5 +170,24 @@ public class TicketAppServiceImpl implements TicketAppService {
 
     private static String format(LocalDateTime t) {
         return t == null ? null : FMT.format(t);
+    }
+
+    /** 正文后追加图片 URL 区块，前端按标记拆开展示 */
+    private static String appendImageUrls(String content, List<String> imageUrls) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return content;
+        }
+        StringBuilder sb = new StringBuilder(content == null ? "" : content);
+        sb.append("\n\n__IMAGES__\n");
+        for (String url : imageUrls) {
+            if (!StringUtils.hasText(url)) {
+                continue;
+            }
+            String u = url.trim();
+            if (u.startsWith("/api/uploads/") || u.startsWith("/uploads/")) {
+                sb.append(u).append('\n');
+            }
+        }
+        return sb.toString().trim();
     }
 }

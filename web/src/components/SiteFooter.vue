@@ -30,7 +30,7 @@
           <router-link to="/faq">{{ $t('footer.faq') }}</router-link>
           <router-link to="/tutorials">{{ $t('footer.tutorials') }}</router-link>
           <router-link to="/order-lookup">{{ $t('footer.orderLookup') }}</router-link>
-          <router-link to="/tickets">{{ $t('footer.tickets') }}</router-link>
+          <router-link to="/profile?tab=tickets">{{ $t('footer.tickets') }}</router-link>
           <div v-if="downloadItems.length" class="download-block">
             <p class="download-title">{{ $t('footer.download') }}</p>
             <div class="download-platforms">

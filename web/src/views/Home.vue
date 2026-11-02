@@ -223,9 +223,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
         <span>{{ $t('nav.products') }}</span>
       </router-link>
-      <router-link to="/tickets" class="bottom-nav-item" :class="{ 'bottom-nav-active': $route.path.startsWith('/ticket') }">
+      <router-link to="/contact" class="bottom-nav-item" :class="{ 'bottom-nav-active': $route.path.startsWith('/contact') }">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>{{ $t('nav.tickets') }}</span>
+        <span>{{ $t('nav.contactUs') }}</span>
       </router-link>
       <router-link to="/profile" class="bottom-nav-item" :class="{ 'bottom-nav-active': $route.path === '/profile' }">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

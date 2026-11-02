@@ -72,7 +72,8 @@ public class SecurityConfig {
                                 "/recharges/rechargeNo/**",
                                 "/wallet/balance",
                                 "/balance",
-                                "/member/balance"
+                                "/member/balance",
+                                "/uploads/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
