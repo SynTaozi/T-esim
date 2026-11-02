@@ -18,6 +18,7 @@
       <nav class="nav" :class="{ 'mobile-open': mobileMenuOpen }">
         <router-link to="/" :class="{ active: isActiveRoute('/') }" @click="onNavClick">{{ $t('nav.home') }}</router-link>
         <router-link to="/products" :class="{ active: isActiveRoute('/products') || isActiveRoute('/product') }" @click="onNavClick">{{ $t('nav.products') }}</router-link>
+        <router-link to="/order-lookup" :class="{ active: isActiveRoute('/order-lookup') }" @click="onNavClick">{{ $t('nav.orderLookup') }}</router-link>
         <router-link to="/faq" :class="{ active: isActiveRoute('/faq') }" @click="onNavClick">{{ $t('nav.faq') }}</router-link>
         <router-link to="/tutorials" :class="{ active: isActiveRoute('/tutorials') }" @click="onNavClick">{{ $t('nav.tutorials') }}</router-link>
         <router-link to="/about" :class="{ active: isActiveRoute('/about') }" @click="onNavClick">{{ $t('nav.about') }}</router-link>

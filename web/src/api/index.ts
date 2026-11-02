@@ -30,8 +30,8 @@ function addProductFields(product: any) {
 }
 
 const api = axios.create({
-  // 开发环境使用直接连接后端，生产环境使用相对路径
-  baseURL: import.meta.env.DEV ? 'http://localhost:8080/api' : '/api',
+  // 走 Vite 代理 /api → backend，避免开发态跨域触发 CORS/403
+  baseURL: '/api',
   timeout: 60000,  // 增加至60秒，避免长时间查询超时
   headers: {
     'Cache-Control': 'no-cache',

@@ -10,7 +10,6 @@ export function getPaymentMethodLabel(
     case 'WECHAT':
       return t('payment.wechatPay')
     case 'ALIPAY':
-    case 'ANTOM_ALIPAY':
       return t('payment.alipay')
     case 'BANK_CARD':
     case 'CARD':
@@ -37,8 +36,6 @@ export function getPaymentMethodDesc(
       return t('recharge.wechatPaymentDesc')
     case 'ALIPAY':
       return t('recharge.stripeAlipayDesc')
-    case 'ANTOM_ALIPAY':
-      return t('recharge.antomAlipayDesc')
     case 'BANK_CARD':
     case 'CARD':
       return t('recharge.bankCardDesc')

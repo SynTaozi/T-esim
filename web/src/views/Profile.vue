@@ -1,87 +1,49 @@
 ﻿<template>
   <div class="profile-page">
-
-    <!-- 全局导航栏 -->
     <SiteHeader />
 
-    <!-- Mobile TopBar (below lg) -->
-    <header class="mobile-topbar">
-      <div class="mobile-brand">
-        <span class="material-symbols-outlined">person</span>
-        {{ authStore.user?.username || $t('profile.personalInfo') }}
-      </div>
-      <div class="mobile-topbar-right">
-        <div class="mobile-topbar-btn" @click="showPasswordDialog = true">
-          <span class="material-symbols-outlined">lock_reset</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- Sidebar (lg+) -->
-    <nav class="profile-sidebar">
-      <!-- Brand -->
-      <div class="sidebar-header">
-        <div class="sidebar-user-row">
-          <div class="sidebar-avatar">
-            <img 
-              src="https://pub-a9d701ee7be14d628bd79fc511b4e290.r2.dev/front/default_avatar.png" 
-              alt="User Avatar"
-              class="sidebar-avatar-img"
-            />
-          </div>
-          <div class="sidebar-user-info">
-            <h2>{{ authStore.user?.username || 'User' }}</h2>
-            <p>{{ authStore.user?.email || 'User Account Dashboard' }}</p>
+    <div class="profile-shell">
+      <aside class="profile-rail">
+        <div class="rail-who">
+          <div class="rail-avatar" aria-hidden="true">{{ userInitial }}</div>
+          <div class="rail-who-text">
+            <strong>{{ authStore.user?.username || 'User' }}</strong>
+            <small>{{ authStore.user?.email || authStore.email || '' }}</small>
           </div>
         </div>
-      </div>
 
-      <!-- Nav Items -->
-      <div class="sidebar-nav-items">
-        <div class="nav-item" :class="{ active: currentTab === 'profile' }" @click="switchTab('profile')">
-          <span class="material-symbols-outlined nav-icon">person</span>
-          <span>{{ $t('profile.personalInfo') }}</span>
-        </div>
-        <div class="nav-item" :class="{ active: currentTab === 'orders' }" @click="switchTab('orders')">
-          <span class="material-symbols-outlined nav-icon">shopping_bag</span>
-          <span>{{ $t('profile.myOrders') }}</span>
-        </div>
-        <div class="nav-item" :class="{ active: currentTab === 'tickets' }" @click="switchTab('tickets')">
-          <span class="material-symbols-outlined nav-icon">support_agent</span>
-          <span>{{ $t('profile.ticketService') }}</span>
-        </div>
-        <div class="nav-item" v-if="false" :class="{ active: currentTab === 'phoneNumbers' }" @click="switchTab('phoneNumbers')">
-          <span class="material-symbols-outlined nav-icon">cell_tower</span>
-          <span>{{ $t('profile.myPhoneNumbers') }}</span>
-        </div>
-        <div class="nav-item" @click="showPasswordDialog = true">
-          <span class="material-symbols-outlined nav-icon">lock_reset</span>
-          <span>{{ $t('profile.changePassword') }}</span>
-        </div>
-      </div>
+        <nav class="rail-nav" aria-label="Profile">
+          <button type="button" class="rail-item" :class="{ active: currentTab === 'orders' }" @click="switchTab('orders')">
+            <span class="material-symbols-outlined rail-ico">shopping_bag</span>
+            <span>{{ $t('profile.myOrders') }}</span>
+          </button>
+          <button type="button" class="rail-item" :class="{ active: currentTab === 'profile' }" @click="switchTab('profile')">
+            <span class="material-symbols-outlined rail-ico">person</span>
+            <span>{{ $t('profile.personalInfo') }}</span>
+          </button>
+          <button type="button" class="rail-item" :class="{ active: currentTab === 'tickets' }" @click="switchTab('tickets')">
+            <span class="material-symbols-outlined rail-ico">support_agent</span>
+            <span>{{ $t('profile.ticketService') }}</span>
+          </button>
+          <button type="button" class="rail-item" @click="showPasswordDialog = true">
+            <span class="material-symbols-outlined rail-ico">lock_reset</span>
+            <span>{{ $t('profile.changePassword') }}</span>
+          </button>
+        </nav>
 
-      <!-- Logout -->
-      <div class="sidebar-bottom">
-        <div class="logout-item" @click="handleLogout">
-          <span class="material-symbols-outlined nav-icon">logout</span>
+        <button type="button" class="rail-logout" @click="handleLogout">
+          <span class="material-symbols-outlined rail-ico">logout</span>
           <span>{{ $t('profile.logout') }}</span>
-        </div>
-      </div>
-    </nav>
+        </button>
+      </aside>
 
-    <!-- Main Content -->
-    <main class="profile-main">
-      <div class="main-inner">
-        <!-- Page Title Area -->
-        <div class="page-title-area">
-          <div>
-            <h1 class="page-title">{{ currentTabTitle }}</h1>
-            <p class="page-desc">{{ currentTabDesc }}</p>
-          </div>
-        </div>
+      <main class="profile-main">
+        <header class="profile-main-head">
+          <h1>{{ currentTabTitle }}</h1>
+          <p>{{ currentTabDesc }}</p>
+        </header>
 
-        <!-- Tab Contents -->
-        <div class="tab-content-area">
+        <div class="profile-main-body">
           <ProfilePersonalInfo
             v-show="currentTab === 'profile'"
             :form="form"
@@ -162,29 +124,22 @@
             @page-change="handlePhonePageChange"
           />
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
 
-    <!-- Mobile Bottom Nav (below md) -->
-    <nav class="mobile-bottom-nav">
-      <div class="mobile-nav-item" :class="{ active: currentTab === 'profile' }" @click="switchTab('profile')">
-        <div class="mobile-nav-icon" :class="{ active: currentTab === 'profile' }">
-          <span class="material-symbols-outlined">person</span>
-        </div>
-        <span>{{ $t('profile.personalInfo') }}</span>
-      </div>
-      <div class="mobile-nav-item" :class="{ active: currentTab === 'orders' }" @click="switchTab('orders')">
-        <div class="mobile-nav-icon" :class="{ active: currentTab === 'orders' }">
-          <span class="material-symbols-outlined">shopping_bag</span>
-        </div>
+    <nav class="mobile-bottom-nav" aria-label="Profile mobile">
+      <button type="button" class="mobile-nav-item" :class="{ active: currentTab === 'orders' }" @click="switchTab('orders')">
+        <span class="material-symbols-outlined">shopping_bag</span>
         <span>{{ $t('profile.myOrders') }}</span>
-      </div>
-      <div class="mobile-nav-item" :class="{ active: currentTab === 'tickets' }" @click="switchTab('tickets')">
-        <div class="mobile-nav-icon" :class="{ active: currentTab === 'tickets' }">
-          <span class="material-symbols-outlined">support_agent</span>
-        </div>
+      </button>
+      <button type="button" class="mobile-nav-item" :class="{ active: currentTab === 'profile' }" @click="switchTab('profile')">
+        <span class="material-symbols-outlined">person</span>
+        <span>{{ $t('profile.personalInfo') }}</span>
+      </button>
+      <button type="button" class="mobile-nav-item" :class="{ active: currentTab === 'tickets' }" @click="switchTab('tickets')">
+        <span class="material-symbols-outlined">support_agent</span>
         <span>{{ $t('profile.ticketService') }}</span>
-      </div>
+      </button>
     </nav>
 
     <!-- 修改密码对话框 -->
@@ -275,7 +230,7 @@
                   <svg v-else-if="pm.code === 'CARD' || pm.code === 'BANK_CARD'" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
                   </svg>
-                  <span v-else-if="pm.code === 'ALIPAY' || pm.code === 'ANTOM_ALIPAY'" class="alipay-mark">支</span>
+                  <span v-else-if="pm.code === 'ALIPAY'" class="alipay-mark">支</span>
                 </div>
                 <div class="payment-info">
                   <span class="payment-name">{{ getPaymentMethodLabel(pm.code, t) }}</span>
@@ -396,6 +351,10 @@ const { locale, t } = useI18n({ useScope: 'global' })
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const userInitial = computed(() => {
+  const name = (authStore.user?.username || authStore.user?.email || 'U').trim()
+  return name.charAt(0).toUpperCase()
+})
 const passwordFormRef = ref<FormInstance>()
 const showPasswordDialog = ref(false)
 const balance = ref(0)
@@ -403,7 +362,7 @@ const balance = ref(0)
 const userBalance = computed(() => balance.value)
 
 // 当前激活的标签页
-const currentTab = ref('profile')
+const currentTab = ref('orders')
 
 // 当前 Tab 标题
 const currentTabTitle = computed(() => {
@@ -729,8 +688,8 @@ function loadTickets() {
   ticketsLoading.value = true
   getTickets({ page: currentPage.value - 1, size: pageSize.value })
     .then((res: any) => {
-      tickets.value = res.tickets || []
-      ticketsTotal.value = res.total || 0
+      tickets.value = res.data?.content || []
+      ticketsTotal.value = res.data?.totalElements || 0
     })
     .catch((err: any) => {
       console.error('Failed to load tickets', err)
@@ -788,7 +747,6 @@ function getPaymentIconClass(code: string): string {
     USDT: 'usdt-icon',
     WECHAT: 'wechat-icon',
     ALIPAY: 'alipay-icon',
-    ANTOM_ALIPAY: 'alipay-icon',
     BANK_CARD: 'card-icon',
     CARD: 'card-icon',
     BALANCE: 'balance-icon'
@@ -1317,17 +1275,18 @@ watch(phonePage, () => {
 })
 
 onMounted(() => {
-  // 处理 URL 参数
+  // 解析初始 Tab：默认订单；URL 可覆盖
+  let initialTab = currentTab.value || 'orders'
   if (route.query.ticket === 'true') {
-    switchTab('tickets')
+    initialTab = 'tickets'
   }
-  
-  // 处理 tab 参数（从其他页面跳转过来时选择对应标签页）
   const tabParam = route.query.tab as string
   if (tabParam && ['profile', 'orders', 'tickets', 'recharge', 'phoneNumbers'].includes(tabParam)) {
-    switchTab(tabParam)
+    initialTab = tabParam
   }
-  
+  // 必须走 switchTab，刷新时默认已在 orders 也要拉数据
+  switchTab(initialTab)
+
   if (authStore.user) {
     form.username = authStore.user.username || ''
     form.email = authStore.user.email || ''
@@ -1517,317 +1476,258 @@ function viewPhoneDetail(phone: any) {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
-/* ===== PAGE LAYOUT ===== */
 .profile-page {
+  --pf-blue: #0071e3;
+  --pf-blue-soft: rgba(0, 113, 227, 0.08);
+  --pf-text: #1d1d1f;
+  --pf-muted: #6e6e73;
+  --pf-line: #d2d2d7;
+  --pf-fill: #f5f5f7;
+  --pf-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
   min-height: 100vh;
-  background: #ffffff;
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
-}
-
-/* ===== MOBILE TOPBAR ===== */
-.mobile-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--site-chrome-divider, rgba(0, 0, 0, 0.05));
-  box-shadow: var(--site-header-shadow, 0 8px 20px -12px rgba(0, 0, 0, 0.1));
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-}
-
-.mobile-brand {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0059b5;
-  letter-spacing: -0.5px;
-  cursor: pointer;
-}
-
-.mobile-topbar-right {
-  display: flex;
-  gap: 8px;
-}
-
-.mobile-topbar-btn {
-  padding: 8px;
-  border-radius: 9999px;
-  color: #0059b5;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.mobile-topbar-btn:hover {
-  background: #f4f3f8;
-}
-
-.mobile-topbar-btn .material-symbols-outlined {
-  font-size: 22px;
-  display: block;
+  background: var(--pf-fill) !important;
+  color: var(--pf-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 72px;
 }
 
 @media (min-width: 1024px) {
-  .mobile-topbar { display: none; }
+  .profile-page { padding-bottom: 40px; }
 }
 
-/* ===== SIDEBAR ===== */
-.profile-sidebar {
-  width: var(--site-profile-sidebar-width, 288px);
-  height: calc(100vh - 64px);
-  position: fixed;
-  left: 0;
-  top: 64px;
-  z-index: 40;
-  background: #ffffff;
-  border-right: 1px solid var(--site-chrome-divider, rgba(0, 0, 0, 0.05));
-  box-shadow: 6px 0 18px -12px rgba(0, 0, 0, 0.09);
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
+.profile-shell {
+  width: min(1080px, calc(100% - 32px));
+  margin: 20px auto 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
 }
 
-@media (min-width: 1024px) {
-  .profile-sidebar { display: flex; }
-}
-
-.sidebar-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--site-chrome-divider, rgba(0, 0, 0, 0.05));
-  box-shadow: var(--site-header-shadow, 0 8px 20px -12px rgba(0, 0, 0, 0.1));
-  flex-shrink: 0;
-}
-
-.sidebar-user-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.sidebar-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 9999px;
-  background: rgba(0, 113, 227, 0.12);
-  border: 2px solid #c1c6d6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: #0059b5;
-  font-size: 22px;
-  overflow: hidden;
-}
-
-.sidebar-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 9999px;
-}
-
-.sidebar-user-info h2 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1a1b1f;
-  margin: 0 0 2px 0;
-  line-height: 1.3;
-}
-
-.sidebar-user-info p {
-  font-size: 12px;
-  color: #414753;
-  margin: 0;
-  line-height: 1.3;
-}
-
-/* Nav Items */
-.sidebar-nav-items {
-  flex: 1;
-  padding: 16px 12px 8px;
+.profile-rail {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: var(--pf-card-shadow);
+  padding: 16px 12px 12px;
+  position: sticky;
+  top: 76px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow-y: auto;
 }
 
-.nav-item {
+.rail-who {
   display: flex;
+  gap: 10px;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.2s, color 0.2s;
-  color: #414753;
-  font-size: 15px;
-  font-weight: 400;
+  padding: 4px 8px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 8px;
+}
+
+.rail-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #e8f1fc, #cfe0f8);
+  color: var(--pf-blue);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
   user-select: none;
 }
 
-.nav-item:hover {
-  background: #eeedf3;
-  transform: translateX(4px);
-  color: #1a1b1f;
+.rail-who-text strong {
+  display: block;
+  font-size: 14px;
+  letter-spacing: -0.01em;
 }
 
-.nav-item.active {
-  background: #0071e3;
-  color: white;
-  font-weight: 600;
-  transform: scale(0.96);
+.rail-who-text small {
+  color: var(--pf-muted);
+  font-size: 11px;
+  word-break: break-all;
 }
 
-.nav-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-.nav-item.active .nav-icon {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-/* Sidebar Bottom (Logout) */
-.sidebar-bottom {
-  padding: 12px;
-  border-top: 1px solid var(--site-chrome-divider, rgba(0, 0, 0, 0.05));
-  box-shadow: var(--site-footer-shadow, 0 -8px 20px -12px rgba(0, 0, 0, 0.1));
-  flex-shrink: 0;
-}
-
-.logout-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  color: #ba1a1a;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.logout-item:hover {
-  background: rgba(186, 26, 26, 0.08);
-}
-
-/* ===== MAIN CONTENT ===== */
-.profile-main {
-  min-height: 100vh;
-  background: #ffffff;
+.rail-nav {
   display: flex;
   flex-direction: column;
-  padding-bottom: 88px; /* 无 SiteFooter，为底部导航留白 */
+  gap: 2px;
 }
 
-@media (min-width: 1024px) {
-  .profile-main {
-    margin-left: var(--site-profile-sidebar-width, 288px);
-    padding-bottom: 48px;
-  }
-}
-
-@media (max-width: 1023px) {
-  .profile-main { padding-top: 64px; /* mobile topbar (header spacer in SiteHeader) */ }
-}
-
-.main-inner {
+.rail-item,
+.rail-logout {
   width: 100%;
-  max-width: var(--site-content-max-width, 1300px);
-  margin: 0 auto;
-  padding: 24px var(--site-content-padding-x, 24px);
-  box-sizing: border-box;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  border-radius: 10px;
+  text-align: left;
+  font: 500 13px/1.2 inherit;
+  color: var(--pf-muted);
 }
 
-@media (min-width: 1024px) {
-  .main-inner {
-    padding: clamp(32px, 3vw, 48px) var(--site-content-padding-x, 24px);
-  }
+.rail-item:hover {
+  background: var(--pf-fill);
+  color: var(--pf-text);
 }
 
-/* Page Title */
-.page-title-area {
-  margin-bottom: 32px;
+.rail-item.active {
+  background: var(--pf-blue-soft);
+  color: var(--pf-blue);
+  font-weight: 600;
 }
 
-.page-title {
-  font-size: 36px;
+.rail-ico {
+  font-size: 18px !important;
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.rail-item.active .rail-ico {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.rail-logout {
+  margin-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 0 0 10px 10px;
+  padding-top: 14px;
+  color: #ff3b30;
+}
+
+.rail-logout:hover {
+  background: rgba(255, 59, 48, 0.06);
+}
+
+.profile-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-main-head {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: var(--pf-card-shadow);
+  padding: 16px 18px;
+}
+
+.profile-main-head h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
   font-weight: 700;
-  color: #1a1b1f;
   letter-spacing: -0.02em;
-  margin: 0 0 8px 0;
-  line-height: 1.2;
 }
 
-.page-desc {
-  font-size: 16px;
-  color: #414753;
+.profile-main-head p {
   margin: 0;
+  color: var(--pf-muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-/* Tab Content */
-.tab-content-area {
-  /* child components handle their own card styling */
+.profile-main-body {
   min-height: 200px;
 }
 
-/* ===== MOBILE BOTTOM NAV ===== */
 .mobile-bottom-nav {
-  display: flex;
-  justify-content: space-around;
+  display: none;
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
-  background: #ffffff;
-  border-top: 1px solid var(--site-chrome-divider, rgba(0, 0, 0, 0.05));
-  box-shadow: var(--site-footer-shadow, 0 -8px 20px -12px rgba(0, 0, 0, 0.1));
+  bottom: 0;
   z-index: 50;
-  padding: 8px 8px 12px;
-}
-
-@media (min-width: 1024px) {
-  .mobile-bottom-nav { display: none; }
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  gap: 4px;
 }
 
 .mobile-nav-item {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  color: #414753;
-  font-size: 10px;
-  font-weight: 600;
-  transition: color 0.2s;
-  flex: 1;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  color: var(--pf-muted);
+  font: 600 10px/1.2 inherit;
+}
+
+.mobile-nav-item .material-symbols-outlined {
+  font-size: 22px;
 }
 
 .mobile-nav-item.active {
-  color: #0059b5;
+  color: var(--pf-blue);
+  background: var(--pf-blue-soft);
 }
 
-.mobile-nav-icon {
-  padding: 4px 16px;
-  border-radius: 9999px;
-}
+@media (max-width: 1023px) {
+  .profile-shell {
+    grid-template-columns: 1fr;
+    width: min(1080px, calc(100% - 24px));
+    margin-top: 14px;
+  }
 
-.mobile-nav-icon.active {
-  background: rgba(0, 113, 227, 0.12);
-}
+  .profile-rail {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 12px;
+  }
 
-.mobile-nav-icon .material-symbols-outlined {
-  font-size: 24px;
-  display: block;
+  .rail-who {
+    width: 100%;
+    margin-bottom: 4px;
+    padding-bottom: 10px;
+  }
+
+  .rail-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .rail-item {
+    width: auto;
+  }
+
+  .rail-logout {
+    width: auto;
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 10px;
+  }
+
+  .mobile-bottom-nav {
+    display: flex;
+  }
+
+  .profile-rail .rail-nav,
+  .profile-rail .rail-logout {
+    display: none;
+  }
 }
 
 /* ===== DIALOG OVERRIDES ===== */

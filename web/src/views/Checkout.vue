@@ -201,6 +201,11 @@
         </div>
       </div>
     </div>
+
+    <GuestCheckoutEmailDialog
+      v-model="guestEmailDialogVisible"
+      @confirm="placeOrderWithEmail"
+    />
   </div>
 </template>
 
@@ -211,6 +216,7 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import SiteHeader from '@/components/SiteHeader.vue'
+import GuestCheckoutEmailDialog from '@/components/GuestCheckoutEmailDialog.vue'
 import { orderApi } from '@/api/order'
 import { validateCoupon } from '@/api/coupon'
 import { resolveCouponTip, resolveCouponTipOrNull } from '@/utils/couponMessage'
@@ -295,6 +301,7 @@ const addressForm = ref({
 
 /** 用户下单备注（可选） */
 const customerRemark = ref('')
+const guestEmailDialogVisible = ref(false)
 
 // 计算总价
 const totalPrice = computed(() => {
@@ -411,22 +418,23 @@ watch(() => authStore.isLoggedIn, (loggedIn) => {
 })
 
 async function handleSubmitOrder() {
-  // 检查登录状态
-  if (!authStore.isLoggedIn) {
-    ElMessage.warning(t('checkout.pleaseLogin'))
-    navigateToLogin(router, route)
+  if (submitting.value) {
+    ElMessage.warning('订单正在处理中，请勿重复点击')
     return
   }
-
-  // 获取当前用户邮箱
-  const userEmail = authStore.user?.email || authStore.user?.username
-  if (!userEmail) {
-    ElMessage.warning(t('checkout.loginRequired'))
-    authStore.logout()
-    navigateToLogin(router, route)
+  if (authStore.isLoggedIn) {
+    const email = (authStore.email || authStore.user?.email || '').trim()
+    if (email) {
+      await placeOrderWithEmail(email)
+      return
+    }
+    guestEmailDialogVisible.value = true
     return
   }
+  guestEmailDialogVisible.value = true
+}
 
+async function placeOrderWithEmail(userEmail: string) {
   // 【防抖】防止重复提交
   if (submitting.value) {
     ElMessage.warning('订单正在处理中，请勿重复点击')
@@ -461,7 +469,9 @@ async function handleSubmitOrder() {
     if (res.code === 200 || res.code === 201) {
       const order = res.data
       const orderId = order.id || order.orderNo
+      const orderNo = order.orderNo || String(orderId)
       const payAmount = Number(order.finalAmount ?? payablePrice.value)
+      ElMessage.success(t('checkout.orderCreatedHint', { orderNo }))
       
       // 根据支付方式跳转到对应页面
       switch (paymentMethod.value) {
@@ -474,15 +484,15 @@ async function handleSubmitOrder() {
               productName: product.value.name,
               remark: `购买 ${product.value.country} ${product.value.name}`
             })
-            if (paymentRes.success) {
+            if (paymentRes.code === 200 || paymentRes.data) {
               console.log('USDT payment created:', paymentRes)
-              router.push('/checkout/usdt/' + orderId)
+              router.push({ path: '/checkout/usdt/' + orderId, query: { orderNo } })
             } else if (paymentRes.code === 'PAYMENT_API_ERROR') {
               ElMessage.error('订单创建失败，请重新下单')
               router.push('/product/' + product.value.id)
             } else {
               console.log('USDT payment creation returned:', paymentRes)
-              router.push('/checkout/usdt/' + orderId)
+              router.push({ path: '/checkout/usdt/' + orderId, query: { orderNo } })
             }
           } catch (e: any) {
             console.error('Failed to create USDT payment:', e)
@@ -493,17 +503,16 @@ async function handleSubmitOrder() {
         case 'wechat':
         case 'alipay':
         case 'bankcard':
-        case 'antom_alipay':
           await navigateByPaymentMethod({
             paymentMethod: paymentMethod.value,
             orderId,
             orderNo: order.orderNo,
-            email: authStore.user?.email,
+            email: userEmail,
             router,
           })
           break
         default:
-          router.push('/profile')
+          router.push(authStore.isLoggedIn ? '/profile' : '/order-lookup')
       }
     } else {
       ElMessage.error(resolveCouponTipOrNull(t, { message: res.message }) || res.message || t('checkout.createOrderFailed'))

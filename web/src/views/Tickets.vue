@@ -212,8 +212,8 @@ function loadTickets() {
   loading.value = true
   getTickets({ page: currentPage.value - 1, size: pageSize.value })
     .then((res: any) => {
-      tickets.value = res.tickets || []
-      total.value = res.total || 0
+      tickets.value = res.data?.content || []
+      total.value = res.data?.totalElements || 0
     })
     .catch((err: any) => {
       if (err.code === 401 || (err.response && err.response.status === 401)) {

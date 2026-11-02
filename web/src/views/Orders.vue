@@ -160,8 +160,8 @@ const loadOrders = async () => {
       status: statusFilter.value ? parseInt(statusFilter.value) : undefined
     })
     
-    orders.value = response.data || []
-    total.value = response.total || 0
+    orders.value = response.data?.content || []
+    total.value = response.data?.totalElements || 0
   } catch (error) {
     ElMessage.error('Failed to load orders')
     console.error(error)

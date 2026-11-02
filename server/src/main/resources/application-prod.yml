@@ -1,15 +1,15 @@
 spring:
   datasource:
-    url: ${TESIM_DB_URL:jdbc:mysql://127.0.0.1:3306/t_esim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true}
-    username: ${TESIM_DB_USERNAME:root}
-    password: ${TESIM_DB_PASSWORD:}
+    url: ${TESIM_DB_URL:jdbc:mysql://127.0.0.1:3306/tesim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true}
+    username: tesim
+    password: 'R6ta8t2yksDwSp3a'
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: ${TESIM_REDIS_HOST:127.0.0.1}
-      port: ${TESIM_REDIS_PORT:6379}
-      database: ${TESIM_REDIS_DB:0}
-      password: ${TESIM_REDIS_PASSWORD:}
+      host: 127.0.0.1
+      port: 9876
+      database: 0
+      password: '@Syntest111'
 
 logging:
   level:

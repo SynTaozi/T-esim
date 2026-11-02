@@ -2,13 +2,16 @@ import api from './index'
 
 export interface ProductPricingTier {
   id: number
-  productId: number
+  productId?: number
   months: number
   pricePerMonth: number
   totalPrice: number
+  salePrice?: number
+  price?: number
   label: string | null
   sortOrder: number
   isActive: number
+  isDefault?: boolean
 }
 
 export const pricingTierApi = {

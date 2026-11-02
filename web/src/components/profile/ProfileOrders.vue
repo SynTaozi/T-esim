@@ -1,7 +1,5 @@
 <template>
   <div class="orders-page">
-
-    <!-- 发货信息：二维码 / 快递服务商+单号，按有无组合显示 -->
     <el-dialog v-model="shipDialogVisible" :title="$t('orders.shipInfo')" width="360px" align-center>
       <div class="ship-dialog-body" v-if="selectedShipOrder">
         <div class="qr-code-container" v-if="hasQr(selectedShipOrder)">
@@ -20,166 +18,125 @@
       </div>
     </el-dialog>
 
-
-    <!-- Metrics Grid -->
-    <section class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-head">
-          <h3 class="metric-label">{{ $t('profile.totalOrders') || 'Total Orders' }}</h3>
-          <div class="metric-icon metric-icon--default">
-            <span class="material-symbols-outlined">receipt_long</span>
-          </div>
+    <section class="strip">
+      <div class="strip-item">
+        <div>
+          <span>{{ $t('profile.totalOrders') || 'Total Orders' }}</span>
+          <strong>{{ orderStats.totalCount }}</strong>
         </div>
-        <p class="metric-value">{{ orderStats.totalCount }}</p>
+        <i class="dot blue"></i>
       </div>
-      <div class="metric-card">
-        <div class="metric-head">
-          <h3 class="metric-label">{{ $t('profile.pendingPayment') || 'Pending Payment' }}</h3>
-          <div class="metric-icon metric-icon--tertiary">
-            <span class="material-symbols-outlined">pending_actions</span>
-          </div>
+      <div class="strip-item">
+        <div>
+          <span>{{ $t('profile.pendingPayment') || 'Pending Payment' }}</span>
+          <strong>{{ orderStats.pendingCount }}</strong>
         </div>
-        <p class="metric-value">{{ orderStats.pendingCount }}</p>
+        <i class="dot warn"></i>
       </div>
-      <div class="metric-card">
-        <div class="metric-head">
-          <h3 class="metric-label">{{ $t('profile.paid') || 'Paid / Active' }}</h3>
-          <div class="metric-icon metric-icon--primary">
-            <span class="material-symbols-outlined">check_circle</span>
-          </div>
+      <div class="strip-item">
+        <div>
+          <span>{{ $t('profile.paid') || 'Paid / Active' }}</span>
+          <strong>{{ orderStats.paidCount }}</strong>
         </div>
-        <p class="metric-value">{{ orderStats.paidCount }}</p>
+        <i class="dot ok"></i>
       </div>
-      <div class="metric-card">
-        <div class="metric-head">
-          <h3 class="metric-label">{{ $t('profile.cumulativeAmount') || 'Total Spent' }}</h3>
-          <div class="metric-icon metric-icon--outline">
-            <span class="material-symbols-outlined">payments</span>
-          </div>
+      <div class="strip-item">
+        <div>
+          <span>{{ $t('profile.cumulativeAmount') || 'Total Spent' }}</span>
+          <strong>${{ orderStats.totalAmount.toFixed(2) }}</strong>
         </div>
-        <p class="metric-value metric-value--amount">${{ orderStats.totalAmount.toFixed(2) }}</p>
+        <i class="dot"></i>
       </div>
     </section>
 
-    <!-- List Header -->
-    <div class="list-header">
-      <h2 class="list-title">{{ $t('orders.recentTransactions') }}</h2>
-    </div>
-
-    <!-- Loading -->
     <div v-if="loading" class="loading-state">
       <div class="loading-spinner"></div>
       <p>{{ $t('common.loading') }}</p>
     </div>
 
-    <div class="orders-list" v-else-if="orders && orders.length > 0">
+    <section v-else-if="orders && orders.length > 0" class="list-card">
+      <div class="list-card-h">
+        <h2>{{ $t('orders.recentTransactions') }}</h2>
+        <p>{{ $t('profile.myOrders') }}</p>
+      </div>
+
       <article
         v-for="order in orders"
         :key="order.id"
-        class="order-card"
-        :class="order.status === 0 ? 'order-card--pending' : 'order-card--default'"
+        class="purchase"
       >
-        <!-- Main Row -->
-        <div class="order-main">
-          <div class="order-icon-wrap">
-            <span class="material-symbols-outlined order-sim-icon">sim_card</span>
-          </div>
-          <div class="order-info">
-            <div class="order-title-row">
-              <h4 class="order-name">{{ getOrderProductName(order) }}</h4>
-              <span class="order-badge" :class="`badge-${order.status ?? 0}`">{{ getOrderStatusText(order.status) }}</span>
-            </div>
-            <p class="order-desc">
-              {{ [getOrderRegions(order), getOrderData(order), getOrderDuration(order), getOrderProductType(order)].filter(v => v && v !== '-').join(' · ') || '-' }}
-            </p>
-            <div class="order-meta">
-              <span>{{ order.orderNo || '-' }}</span>
-              <span class="meta-dot">•</span>
-              <span>{{ order.createdAt ? formatDate(order.createdAt) : '-' }}</span>
-              <template v-if="order.paymentMethod">
-                <span class="meta-dot">•</span>
-                <span>{{ getPaymentText(order.paymentMethod) }}</span>
-              </template>
-            </div>
-          </div>
-
-          <!-- Right: Price + Actions -->
-          <div class="order-right">
-            <p class="order-price">${{ formatAmount(order.totalAmount) }}</p>
-            <div class="order-actions">
-              <button
-                v-if="order.status === 0"
-                class="action-btn action-btn--primary"
-                @click="$emit('pay-order', order)"
-              >
-                {{ $t('orders.payNow') }}
-              </button>
-              <button
-                v-if="order.status === 2 && canShowShipDialog(order)"
-                class="action-btn action-btn--outline"
-                @click="showShipInfo(order)"
-              >
-                <span class="material-symbols-outlined qr-icon">{{ hasQr(order) ? 'qr_code_2' : 'local_shipping' }}</span>
-                {{ $t('orders.viewShipping') }}
-              </button>
-              <button
-                v-if="order.status === 0"
-                class="action-btn action-btn--ghost"
-                @click="$emit('cancel-order', order.id)"
-              >
-                {{ $t('orders.cancelOrder') }}
-              </button>
-            </div>
-          </div>
+        <div class="p-icon">
+          <span class="material-symbols-outlined">sim_card</span>
         </div>
+        <div class="p-body">
+          <p class="p-title">
+            {{ getOrderProductName(order) }}
+            <span class="status" :class="`status-${order.status ?? 0}`">{{ getOrderStatusText(order.status) }}</span>
+          </p>
+          <p class="p-meta">
+            {{ [order.createdAt ? formatDate(order.createdAt) : null, order.orderNo, getOrderRegions(order), getOrderData(order), getOrderDuration(order)].filter(Boolean).join(' · ') }}
+          </p>
 
-        <!-- Payment Method Selector (status=0) -->
-        <div v-if="order.status === 0" class="order-extra order-extra--payment">
-          <span class="extra-label">{{ $t('profile.switchPayment') }}：</span>
-          <span
-            v-for="pm in paymentMethods"
-            :key="pm.value"
-            class="gateway-option"
-            :class="{ active: selectedPayment[order.id] === pm.value }"
-            @click="$emit('select-payment', order.id, pm.value)"
-          >{{ pm.label }}</span>
-          <span v-if="paymentMethods.length === 0" class="gateway-empty">
-            {{ $t('payment.noPaymentMethods') || '后台暂未开启可用支付方式' }}
-          </span>
-        </div>
-
-        <!-- 客户通知（缺货等） -->
-        <div v-if="order.customerNoticeSentAt && order.customerNoticeContent" class="order-extra order-extra--notice">
-          <div class="notice-tip-head">
-            <el-icon><Message /></el-icon>
-            <span>{{ $t('profile.customerNoticeTip') }}</span>
+          <div v-if="order.status === 0" class="pay-row">
+            <span>{{ $t('profile.switchPayment') }}</span>
+            <button
+              v-for="pm in paymentMethods"
+              :key="pm.value"
+              type="button"
+              class="chip"
+              :class="{ on: selectedPayment[order.id] === pm.value }"
+              @click="$emit('select-payment', order.id, pm.value)"
+            >{{ pm.label }}</button>
+            <span v-if="paymentMethods.length === 0" class="chip-empty">
+              {{ $t('payment.noPaymentMethods') || '后台暂未开启可用支付方式' }}
+            </span>
           </div>
-          <p class="notice-tip-body">{{ order.customerNoticeContent }}</p>
-        </div>
 
-        <!-- Status Tips -->
-        <div v-if="order.status === 1" class="order-extra order-extra--waiting">
-          <div class="waiting-tip-left">
-            <el-icon><Clock /></el-icon>
+          <div v-if="order.customerNoticeSentAt && order.customerNoticeContent" class="tip tip-notice">
+            <strong>{{ $t('profile.customerNoticeTip') }}</strong>
+            <p>{{ order.customerNoticeContent }}</p>
+          </div>
+          <div v-else-if="order.status === 1" class="tip tip-wait">
             <span>{{ $t('profile.paidWaitingShip') }}</span>
+            <em>{{ $t('profile.phoneCardShipWithin24h') }}</em>
           </div>
-          <span class="waiting-tip-right">{{ $t('profile.phoneCardShipWithin24h') }}</span>
+          <div v-else-if="order.status === 2" class="tip tip-ship">
+            {{ $t('profile.shippedCheckEmail') }}
+          </div>
         </div>
-        <div v-else-if="order.status === 2" class="order-extra order-extra--shipped">
-          <el-icon><Message /></el-icon>
-          <span>{{ $t('profile.shippedCheckEmail') }}</span>
+
+        <div class="p-right">
+          <div class="p-price">${{ formatAmount(order.totalAmount) }}</div>
+          <div class="actions">
+            <button
+              v-if="order.status === 0"
+              type="button"
+              class="pill pill-blue"
+              @click="$emit('pay-order', order)"
+            >{{ $t('orders.payNow') }}</button>
+            <button
+              v-if="order.status === 2 && canShowShipDialog(order)"
+              type="button"
+              class="pill pill-line"
+              @click="showShipInfo(order)"
+            >{{ $t('orders.viewShipping') }}</button>
+            <button
+              v-if="order.status === 0"
+              type="button"
+              class="pill pill-line"
+              @click="$emit('cancel-order', order.id)"
+            >{{ $t('orders.cancelOrder') }}</button>
+          </div>
         </div>
       </article>
-    </div>
+    </section>
 
-    <!-- Empty State -->
     <el-empty v-else :description="$t('orders.noOrders')">
       <router-link to="/products">
-        <el-button type="primary">{{ $t('orders.goShopping') }}</el-button>
+        <el-button type="primary" round>{{ $t('orders.goShopping') }}</el-button>
       </router-link>
     </el-empty>
 
-    <!-- Pagination -->
     <div class="orders-pagination" v-if="!loading && ordersTotal > orderPageSize">
       <el-pagination
         background
@@ -194,13 +151,9 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
-import { Check, Clock, Message } from '@element-plus/icons-vue'
 import type { Order } from '@/api/order'
 import EsimQrImage from '@/components/EsimQrImage.vue'
-
-const { locale, t } = useI18n({ useScope: 'global' })
 
 const shipDialogVisible = ref(false)
 const selectedShipOrder = ref<Order | null>(null)
@@ -275,27 +228,273 @@ defineEmits<{
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 .orders-page {
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  --blue: #0071e3;
+  --blue-soft: rgba(0, 113, 227, 0.08);
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --line: #d2d2d7;
+  --fill: #f5f5f7;
+  --ok: #34c759;
+  --warn: #ff9500;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.strip-item {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.strip-item span {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.strip-item strong {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  flex-shrink: 0;
+}
+.dot.blue { background: var(--blue); }
+.dot.warn { background: var(--warn); }
+.dot.ok { background: var(--ok); }
+
+.list-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+}
+
+.list-card-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.list-card-h h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.list-card-h p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.purchase {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.purchase:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.p-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: var(--fill);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  display: grid;
+  place-items: center;
+  color: var(--blue);
+}
+
+.p-icon .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.p-title {
+  margin: 0 0 3px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.p-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.status {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-0 { color: var(--warn); }
+.status-1, .status-2 { color: var(--ok); }
+.status-3, .status-4 { color: var(--muted); }
+
+.p-right {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.p-price {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.pill {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 980px;
+  border: 0;
+  cursor: pointer;
+  font: 600 12px inherit;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pill-blue {
+  background: var(--blue);
+  color: #fff;
+}
+
+.pill-line {
+  background: var(--fill);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.pay-row {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--fill);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chip {
+  padding: 4px 9px;
+  border-radius: 980px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+  font: 600 12px inherit;
+  color: var(--text);
+}
+
+.chip.on {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.chip-empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tip {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tip-notice {
+  background: rgba(255, 149, 0, 0.1);
+  color: #8a5a00;
+}
+
+.tip-notice strong { display: block; margin-bottom: 4px; }
+.tip-notice p { margin: 0; white-space: pre-wrap; }
+
+.tip-wait {
+  background: var(--blue-soft);
+  color: var(--blue);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tip-wait em {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.tip-ship {
+  background: rgba(52, 199, 89, 0.1);
+  color: #248a3d;
 }
 
 .loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px 24px;
-  gap: 16px;
-  color: #414753;
+  gap: 12px;
+  padding: 48px 16px;
+  color: var(--muted);
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(0, 89, 181, 0.15);
-  border-top-color: #0059b5;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(0, 113, 227, 0.15);
+  border-top-color: var(--blue);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -304,483 +503,12 @@ defineEmits<{
   to { transform: rotate(360deg); }
 }
 
-/* ===== PAGE HEADER ===== */
-.orders-header {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 48px;
-}
-
-@media (min-width: 768px) {
-  .orders-header {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-}
-
-.orders-title {
-  font-size: 40px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  color: #1a1b1f;
-  margin: 0 0 8px;
-}
-
-.orders-subtitle {
-  font-size: 17px;
-  line-height: 1.5;
-  color: #414753;
-  margin: 0;
-}
-
-.new-order-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: #0059b5;
-  color: #ffffff;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-decoration: none;
-  transition: background 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.new-order-btn:hover {
-  background: #005cbb;
-}
-
-.new-order-btn .material-symbols-outlined {
-  font-size: 20px;
-}
-
-/* ===== METRICS GRID ===== */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  margin-bottom: 48px;
-}
-
-@media (min-width: 640px) {
-  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (min-width: 1024px) {
-  .metrics-grid { grid-template-columns: repeat(4, 1fr); }
-}
-
-.metric-card {
-  background: #ffffff;
-  border: 1px solid rgba(193, 198, 214, 0.4);
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.metric-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.metric-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #414753;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0;
-}
-
-.metric-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.metric-icon .material-symbols-outlined {
-  font-size: 18px;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-.metric-icon--default { background: #eeedf3; color: #0059b5; }
-.metric-icon--tertiary { background: #ffdbcb; color: #7a3000; }
-.metric-icon--primary { background: #d7e2ff; color: #00458f; }
-.metric-icon--outline { background: #eeedf3; color: #414753; }
-
-.metric-value {
-  font-size: 48px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  color: #1a1b1f;
-  margin: 0;
-}
-
-.metric-value--amount {
-  font-size: 32px;
-  margin-top: auto;
-}
-
-/* ===== LIST HEADER ===== */
-.list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(193, 198, 214, 0.3);
-}
-
-.list-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1a1b1f;
-  margin: 0;
-}
-
-/* ===== ORDERS LIST ===== */
-.orders-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* ===== ORDER CARD ===== */
-.order-card {
-  background: #ffffff;
-  border: 1px solid #c1c6d6;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: border-color 0.2s, background 0.2s;
-}
-
-.order-card--pending:hover {
-  border-color: rgba(0, 89, 181, 0.5);
-  background: #f4f3f8;
-}
-
-.order-card--default:hover {
-  border-color: #717785;
-  background: #f4f3f8;
-}
-
-/* Main row inside card */
-.order-main {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  align-items: flex-start;
-}
-
-@media (min-width: 768px) {
-  .order-main {
-    flex-direction: row;
-    align-items: center;
-  }
-}
-
-/* SIM icon */
-.order-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  background: #eeedf3;
-  border: 1px solid #c1c6d6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.order-sim-icon {
-  font-size: 24px;
-  color: #414753;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-/* Order info */
-.order-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.order-title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-bottom: 4px;
-}
-
-.order-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1b1f;
-  margin: 0;
-  letter-spacing: 0.02em;
-}
-
-/* Status badges */
-.order-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.badge-0 { background: #ffdbcb; color: #7a3000; border: 1px solid rgba(154, 63, 0, 0.2); }
-.badge-1 { background: #d7e2ff; color: #00458f; border: 1px solid rgba(0, 92, 187, 0.2); }
-.badge-2 { background: #e9e7ed; color: #1a1b1f; border: 1px solid rgba(193, 198, 214, 0.5); }
-.badge-3 { background: #eeedf3; color: #414753; border: 1px solid #c1c6d6; }
-.badge-4 { background: #ffdad6; color: #93000a; border: 1px solid rgba(186, 26, 26, 0.2); }
-
-.order-desc {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #414753;
-  margin: 0 0 8px;
-}
-
-.order-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #717785;
-}
-
-.meta-dot {
-  color: #c1c6d6;
-}
-
-/* Right: price + actions */
-.order-right {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-top: 1px solid rgba(193, 198, 214, 0.3);
-  padding-top: 16px;
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .order-right {
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: center;
-    border-top: none;
-    padding-top: 0;
-    width: auto;
-    flex-shrink: 0;
-  }
-}
-
-.order-price {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: #1a1b1f;
-  margin: 0;
-}
-
-.order-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-/* ===== ACTION BUTTONS (matching order.html) ===== */
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  border: 1px solid transparent;
-}
-
-.action-btn--primary {
-  background: #0059b5;
-  color: #ffffff;
-  border-color: #0059b5;
-}
-
-.action-btn--primary:hover {
-  background: rgba(0, 89, 181, 0.9);
-}
-
-.action-btn--outline {
-  background: transparent;
-  color: #0059b5;
-  border-color: rgba(0, 89, 181, 0.3);
-}
-
-.action-btn--outline:hover {
-  background: rgba(0, 89, 181, 0.05);
-}
-
-.action-btn--ghost {
-  background: transparent;
-  color: #717785;
-  border-color: rgba(113, 119, 133, 0.3);
-}
-
-.action-btn--ghost:hover {
-  background: rgba(113, 119, 133, 0.05);
-  color: #414753;
-}
-
-/* ===== QR ICON ===== */
-.qr-icon {
-  font-size: 16px;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-/* ===== EXTRA SECTIONS ===== */
-.order-extra {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 12px 24px;
-  border-top: 1px solid rgba(193, 198, 214, 0.3);
-  font-size: 13px;
-}
-
-.order-extra--payment {
-  background: #f4f3f8;
-  color: #414753;
-}
-
-.order-extra--notice {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  background: rgba(245, 158, 11, 0.08);
-  color: #92400e;
-  border-top-color: rgba(245, 158, 11, 0.2);
-}
-.notice-tip-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-}
-.notice-tip-body {
-  margin: 0;
-  white-space: pre-wrap;
-  line-height: 1.6;
-  color: #78350f;
-  font-size: 13px;
-}
-
-.order-extra--waiting {
-  justify-content: space-between;
-  gap: 12px 16px;
-  background: rgba(0, 89, 181, 0.06);
-  color: #0059b5;
-  border-top-color: rgba(0, 89, 181, 0.15);
-}
-
-.waiting-tip-left {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.waiting-tip-right {
-  margin-left: auto;
-  text-align: right;
-  color: #717785;
-  font-size: 12px;
-  line-height: 1.4;
-  max-width: min(420px, 100%);
-}
-
-.order-extra--shipped {
-  background: rgba(16, 185, 129, 0.06);
-  color: #059669;
-  border-top-color: rgba(16, 185, 129, 0.15);
-}
-
-.extra-label {
-  color: #414753;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.gateway-option {
-  padding: 3px 10px;
-  background: #ffffff;
-  border: 1px solid #c1c6d6;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 12px;
-  color: #414753;
-}
-
-.gateway-option:hover {
-  border-color: #0059b5;
-  color: #0059b5;
-}
-
-.gateway-option.active {
-  border-color: #0059b5;
-  background: rgba(0, 89, 181, 0.06);
-  color: #0059b5;
-  font-weight: 600;
-}
-
-.gateway-empty {
-  font-size: 12px;
-  color: #717785;
-}
-
-/* ===== PAGINATION ===== */
 .orders-pagination {
   display: flex;
   justify-content: center;
-  padding: 24px 0;
-  border-top: 1px solid rgba(193, 198, 214, 0.3);
-  margin-top: 16px;
+  padding: 4px 0 8px;
 }
 
-/* ===== SHIP DIALOG ===== */
 .ship-dialog-body {
   display: flex;
   flex-direction: column;
@@ -790,19 +518,13 @@ defineEmits<{
 .qr-code-container {
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 16px 24px 8px;
+  padding: 8px 0;
 }
 
 .qr-code-container :deep(.qr-code-image) {
   max-width: 260px;
-  max-height: 260px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(193, 198, 214, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   background: #fff;
 }
 
@@ -810,26 +532,32 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 8px 12px;
 }
 
 .ship-logistics-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
   gap: 12px;
   font-size: 14px;
-  line-height: 1.5;
 }
 
-.ship-logistics-label {
-  color: #717785;
-  flex-shrink: 0;
-}
+.ship-logistics-label { color: var(--muted); }
+.ship-logistics-value { text-align: right; word-break: break-all; }
 
-.ship-logistics-value {
-  color: #1a1d26;
-  text-align: right;
-  word-break: break-all;
+@media (max-width: 860px) {
+  .strip { grid-template-columns: 1fr 1fr; }
+  .purchase {
+    grid-template-columns: 40px 1fr;
+  }
+  .p-right {
+    grid-column: 2;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    white-space: normal;
+  }
+  .p-price { margin-bottom: 0; }
 }
 </style>

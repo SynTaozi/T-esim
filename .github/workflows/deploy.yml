@@ -1,0 +1,119 @@
+# push 到 main 或手动 Run workflow 时自动构建并部署到服务器
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      FRONT_REMOTE_PATH: ${{ secrets.FRONT_REMOTE_PATH }}
+      ADMIN_REMOTE_PATH: ${{ secrets.ADMIN_REMOTE_PATH }}
+      BACKEND_REMOTE_DIR: ${{ secrets.BACKEND_REMOTE_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: server/pom.xml
+
+      - name: Build storefront
+        working-directory: web
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm run build
+
+      - name: Build admin
+        working-directory: admin
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm run build
+
+      - name: Build backend jar
+        working-directory: server
+        run: mvn -B -Pprod -DskipTests package
+
+      - name: Prepare SSH
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_PORT=$PORT" >> "$GITHUB_ENV"
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Upload storefront
+        run: |
+          RSYNC_SSH="ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new"
+          # 宝塔站点常有受保护的 .user.ini，--delete 删不掉会触发 rsync code 23
+          rsync -avz --delete \
+            --exclude='.user.ini' \
+            --exclude='.htaccess' \
+            --exclude='.well-known' \
+            --no-owner --no-group --no-perms \
+            -e "$RSYNC_SSH" \
+            web/dist/ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${FRONT_REMOTE_PATH}/"
+
+      - name: Upload admin
+        run: |
+          RSYNC_SSH="ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new"
+          rsync -avz --delete \
+            --exclude='.user.ini' \
+            --exclude='.htaccess' \
+            --exclude='.well-known' \
+            --no-owner --no-group --no-perms \
+            -e "$RSYNC_SSH" \
+            admin/dist/ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${ADMIN_REMOTE_PATH}/"
+
+      - name: Upload backend jar
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${SSH_PORT}" -o StrictHostKeyChecking=accept-new \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "mkdir -p ${BACKEND_REMOTE_DIR}"
+          rsync -avz \
+            -e "ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new" \
+            server/target/t-esim-server.jar \
+            deploy/restart-backend.sh \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${BACKEND_REMOTE_DIR}/"
+          ssh -i ~/.ssh/deploy_key -p "${SSH_PORT}" -o StrictHostKeyChecking=accept-new \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "chmod +x ${BACKEND_REMOTE_DIR}/restart-backend.sh && sed -i 's/\r$//' ${BACKEND_REMOTE_DIR}/restart-backend.sh"
+
+      - name: Restart backend
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${SSH_PORT}" -o StrictHostKeyChecking=accept-new \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "SPRING_PROFILE=prod SERVER_PORT=8088 bash ${BACKEND_REMOTE_DIR}/restart-backend.sh"
+
+# 本项目服务器路径（填到 GitHub Secrets，与 mocbase 分开，勿指向旧站目录）:
+#   DEPLOY_HOST / DEPLOY_USER / DEPLOY_PORT / DEPLOY_SSH_KEY  （可与 mocbase 同机同密钥）
+#   FRONT_REMOTE_PATH=/tesim/web
+#   ADMIN_REMOTE_PATH=/tesim/admin
+#   BACKEND_REMOTE_DIR=/tesim/server
+#
+# 后端固定 8088，避免与 mocbase(8080) 冲突；restart 脚本只杀本目录 jar。

@@ -6,10 +6,10 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: 127.0.0.1
-      port: 6379
-      database: 0
-      # password:
+      host: 103.106.189.67
+      port: 9876
+      database: 8
+      password: '@Syntest111'
 
 logging:
   level:

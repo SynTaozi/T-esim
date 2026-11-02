@@ -1,11 +1,29 @@
 server:
-  port: 8080
+  port: 8088
+  servlet:
+    context-path: /api
 
 spring:
   application:
     name: t-esim
   profiles:
     active: dev
+
+tesim:
+  jwt:
+    secret: tesim-dev-jwt-secret-change-me-32bytes-min
+    expire-hours: 168
+  payment:
+    usdt:
+      address: TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      rate: 1
+    stripe:
+      # 勿把真实 sk_/whsec_ 写入仓库；本地/服务器用环境变量注入
+      api-key: ${TESIM_STRIPE_API_KEY:}
+      webhook-secret: ${TESIM_STRIPE_WEBHOOK_SECRET:}
+      success-url: http://localhost:5173/checkout/stripe/success
+      cancel-url: http://localhost:5173/checkout/stripe/cancel
+      currency: usd
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

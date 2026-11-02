@@ -1,4 +1,7 @@
-/** 待支付订单是否已超时（与 USDT 支付页 / 订单保留时长一致） */
+/** 待支付订单保留时长（与后端 OrderPaymentExpireService.TTL / payment.expire_at 一致） */
+export const ORDER_PAYMENT_EXPIRE_MS = 30 * 60 * 1000
+
+/** 待支付订单是否已超时（与支付页倒计时 / 订单保留时长一致） */
 export function isOrderPaymentExpired(order: {
   status?: number
   paymentExpireTime?: number | string | null
@@ -20,6 +23,6 @@ export function isOrderPaymentExpired(order: {
   if (!Number.isFinite(createdMs)) {
     return false
   }
-  // 与文案「订单将保留24小时」一致；无 paymentExpireTime 时的兜底
-  return Date.now() > createdMs + 24 * 60 * 60 * 1000
+  // 无 paymentExpireTime 时按创建时间 + 30 分钟兜底
+  return Date.now() > createdMs + ORDER_PAYMENT_EXPIRE_MS
 }

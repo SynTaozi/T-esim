@@ -80,15 +80,6 @@ export const paymentApi = {
   }) => api.post('/payment/stripe/checkout-session', data),
 
   /**
-   * 创建 Antom Alipay 收银台（ANTOM_ALIPAY，不替代 ALIPAY）
-   */
-  createAntomCheckout: (data: {
-    orderNo?: string
-    orderId?: string | number
-    email?: string
-  }) => api.post('/payment/antom/checkout', data),
-
-  /**
    * 支付成功页：用 Stripe session_id 主动确认并落库
    */
   confirmStripeSession: (sessionId: string) =>

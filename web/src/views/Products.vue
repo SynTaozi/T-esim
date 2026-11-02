@@ -103,15 +103,6 @@
               @input="handleSearch"
               class="filter-search-input" />
           </div>
-          <!-- Sort -->
-          <div class="sort-wrap">
-            <span class="sort-label">{{ $t('phoneNumbers.sortBy') }}</span>
-            <el-select v-model="sortBy" class="sort-select" style="width:160px">
-              <el-option :value="'default'" :label="$t('phoneNumbers.default')" />
-              <el-option :value="'price_asc'" :label="$t('phoneNumbers.priceAsc')" />
-              <el-option :value="'price_desc'" :label="$t('phoneNumbers.priceDesc')" />
-            </el-select>
-          </div>
         </div>
         <!-- 窄屏 / 边距不足时：顶部横排展示二级分类 -->
         <div v-if="isPhoneCategory && subCategories.length && subcategoryRailMode === 'inline'" class="subcategory-inline">
@@ -450,13 +441,13 @@
               class="payment-option"
               :class="{
                 selected: paymentMethod === pm.code.toLowerCase(),
-                disabled: pm.code === 'BALANCE' && userBalance < payablePrice
+                disabled: (pm.code === 'BALANCE' && (!authStore.isLoggedIn || userBalance < payablePrice))
               }">
               <input
                 type="radio"
                 v-model="paymentMethod"
                 :value="pm.code.toLowerCase()"
-                :disabled="pm.code === 'BALANCE' && userBalance < payablePrice" />
+                :disabled="pm.code === 'BALANCE' && (!authStore.isLoggedIn || userBalance < payablePrice)" />
               <div class="payment-content">
                 <div class="payment-icon" :class="getPaymentIconClass(pm.code)">
                   <span v-if="pm.code === 'USDT'">₮</span>
@@ -469,7 +460,7 @@
                   <svg v-else-if="pm.code === 'CARD' || pm.code === 'BANK_CARD'" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
                   </svg>
-                  <span v-else-if="pm.code === 'ALIPAY' || pm.code === 'ANTOM_ALIPAY'" class="alipay-mark">支</span>
+                  <span v-else-if="pm.code === 'ALIPAY'" class="alipay-mark">支</span>
                 </div>
                 <div class="payment-info">
                   <span class="payment-name">{{ getPaymentMethodLabel(pm.code, t) }}</span>
@@ -505,6 +496,10 @@
 
     <PurchaseNoticeDialog
       v-model="purchaseNoticeVisible"
+      @confirm="onPurchaseNoticeConfirm"
+    />
+    <GuestCheckoutEmailDialog
+      v-model="guestEmailDialogVisible"
       @confirm="submitOrderAfterNotice"
     />
   </div>
@@ -530,6 +525,7 @@ import { CircleCheck, Search, Connection, Iphone, ArrowRight } from '@element-pl
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
 import PurchaseNoticeDialog from '@/components/PurchaseNoticeDialog.vue'
+import GuestCheckoutEmailDialog from '@/components/GuestCheckoutEmailDialog.vue'
 import { getCurrentLocale } from '@/i18n'
 import { formatCountriesForDisplay, getCountryFlagEmoji } from '@/utils/countryDisplay'
 import { useSiteConfigStore } from '@/stores/siteConfig'
@@ -553,7 +549,6 @@ const originProducts = ref<Product[]>([])  // 保存原始的全部产品（用�
 const regions = ref<string[]>([])
 const selectedRegion = ref('')
 const selectedItemType = ref(0)  // product_categories.id
-const sortBy = ref('default')
 const searchKeyword = ref('')  // 搜索关键词
 const loadingPhone = ref(true)  // 初始为 true，避免首屏先闪「暂无数据」
 const loadingData = ref(true)
@@ -664,6 +659,7 @@ const userBalance = ref(0) // 用户余额
 const enabledPaymentMethods = ref<any[]>([]) // 开启的支付方式（完整对象）
 const placingOrder = ref(false) // 下单防抖标志
 const purchaseNoticeVisible = ref(false)
+const guestEmailDialogVisible = ref(false)
 const devices = ref<Device[]>([]) // 从数据库加载的设备列表
 
 // 定价档位
@@ -856,7 +852,6 @@ function getPaymentIconClass(code: string): string {
     'CARD': 'card-icon',
     'BANK_CARD': 'card-icon',
     'ALIPAY': 'alipay-icon',
-    'ANTOM_ALIPAY': 'alipay-icon'
   }
   return classMap[code] || 'default-icon'
 }
@@ -1051,7 +1046,20 @@ async function openDetail(product: Product) {
   try {
     const res: any = await pricingTierApi.getActiveByProduct(product.id)
     if (res.code === 200) {
-      productPricingTiers.value = res.data || []
+      productPricingTiers.value = (res.data || []).map((t: any) => {
+        const months = Number(t.months) || 0
+        const total = Number(t.totalPrice ?? t.salePrice ?? t.price ?? 0)
+        const perMonth = Number(t.pricePerMonth) || (months > 0 ? total / months : total)
+        return {
+          ...t,
+          months,
+          totalPrice: total,
+          pricePerMonth: perMonth
+        }
+      })
+      selectedTier.value = productPricingTiers.value.find((t: any) => t.isDefault)
+        || productPricingTiers.value[0]
+        || null
     }
   } catch (e) {
     productPricingTiers.value = []
@@ -1059,13 +1067,6 @@ async function openDetail(product: Product) {
 }
 
 async function handleBuyNow() {
-  if (!authStore.isLoggedIn) {
-    ElMessage.warning(t('checkout.pleaseLogin'))
-    detailDialogVisible.value = false
-    navigateToLogin(router, route)
-    return
-  }
-
   // 如果有月份定价，必须选择周期
   if (productPricingTiers.value.length > 0 && !selectedTier.value) {
     ElMessage.warning('请选择购买周期')
@@ -1111,10 +1112,29 @@ async function handleBuyNow() {
   purchaseNoticeVisible.value = true
 }
 
-async function submitOrderAfterNotice() {
+function onPurchaseNoticeConfirm() {
+  if (authStore.isLoggedIn) {
+    const email = (authStore.email || authStore.user?.email || '').trim()
+    if (email) {
+      submitOrderAfterNotice(email)
+      return
+    }
+    // 已登录但账号未绑邮箱时，补填履约邮箱
+    guestEmailDialogVisible.value = true
+    return
+  }
+  guestEmailDialogVisible.value = true
+}
+
+async function submitOrderAfterNotice(emailInput: string) {
   if (!selectedProduct.value) return
   if (placingOrder.value) {
     ElMessage.warning('订单正在处理中，请勿重复点击')
+    return
+  }
+  const email = (emailInput || '').trim()
+  if (!email) {
+    ElMessage.warning(t('checkout.emailRequired'))
     return
   }
   placingOrder.value = true
@@ -1123,7 +1143,7 @@ async function submitOrderAfterNotice() {
     await siteConfig.ensureShippingFee()
     const paymentMethodUpper = paymentMethod.value.toUpperCase()
     const orderData: any = {
-      email: authStore.user?.email || '',
+      email,
       paymentMethod: paymentMethodUpper,
       productId: selectedProduct.value.id,
       devices: selectedDevices.value.map(id => String(id)),
@@ -1146,14 +1166,14 @@ async function submitOrderAfterNotice() {
     
     if (res.code === 200) {
       detailDialogVisible.value = false
-      ElMessage.success(t('checkout.processing'))
       const orderId = res.data.id
       const orderNo = res.data.orderNo || String(orderId)
+      ElMessage.success(t('checkout.orderCreatedHint', { orderNo }))
       await navigateByPaymentMethod({
         paymentMethod: paymentMethodUpper,
         orderId,
         orderNo,
-        email: authStore.user?.email,
+        email,
         checkoutUrl: res.data.checkoutUrl,
         router,
       })
@@ -1213,9 +1233,9 @@ async function fetchAllProducts() {
     const subParam = isPhoneCategory.value && selectedSubCategoryId.value ? selectedSubCategoryId.value : undefined
     let res: any
     if (searchKeyword.value.trim()) {
-      res = await productApi.searchProducts(searchKeyword.value.trim(), currentPage.value - 1, pageSize.value, itemTypeParam, sortBy.value, subParam)
+      res = await productApi.searchProducts(searchKeyword.value.trim(), currentPage.value - 1, pageSize.value, itemTypeParam, subParam)
     } else {
-      res = await productApi.getProducts(selectedRegion.value || undefined, currentPage.value - 1, pageSize.value, itemTypeParam, sortBy.value, subParam)
+      res = await productApi.getProducts(selectedRegion.value || undefined, currentPage.value - 1, pageSize.value, itemTypeParam, subParam)
     }
 
     if (res?.code === 200) {
@@ -1287,11 +1307,12 @@ async function fetchUserBalance() {
 async function fetchEnabledPaymentMethods() {
   try {
     const res: any = await paymentMethodApi.getEnabled()
-    if (res && res.length > 0) {
-      // 保存完整对象，包含 name 字段
-      enabledPaymentMethods.value = res
+    const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
+    if (list.length > 0) {
+      // 保存完整对象，包含 name 字段；钱包余额支付已下线
+      enabledPaymentMethods.value = list.filter((m: any) => m.code !== 'BALANCE')
       // 提取支付方式代码列表
-      const codes = res.map((m: any) => m.code)
+      const codes = enabledPaymentMethods.value.map((m: any) => m.code)
       // 如果默认支付方式不在开启列表中，切换到第一个开启的
       const defaultMethod = paymentMethod.value.toUpperCase()
       if (!codes.includes(defaultMethod) && codes.length > 0) {
@@ -1340,7 +1361,7 @@ function handleSearch() {
   fetchAllProducts()
 }
 
-watch([selectedRegion, sortBy], () => {
+watch(selectedRegion, () => {
   currentPage.value = 1
   fetchAllProducts()
 })
@@ -1765,28 +1786,6 @@ onUnmounted(() => {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
 }
 
-/* Sort */
-.sort-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-.sort-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-.sort-select :deep(.el-select__wrapper) {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  color: var(--accent-primary) !important;
-}
-
 /* ── PRODUCT GRID ── */
 .product-grid {
   display: grid;
@@ -2073,7 +2072,6 @@ a.product-card {
   .hero-section { margin-bottom: 32px; }
   .controls-block { gap: 16px; }
   .search-wrap { min-width: 120px; max-width: 100%; flex: 1 1 100%; order: 3; }
-  .sort-wrap { margin-left: 0; }
   .card-body { padding: 16px; }
   .card-name { font-size: 16px; }
 }

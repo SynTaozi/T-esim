@@ -102,14 +102,14 @@
                     class="pd-tier-chip"
                     :class="{ selected: selectedTier?.id === tier.id }">
                     <input type="radio" :value="tier" v-model="selectedTier" />
-                    <div class="pd-tier-chip-inner">
-                      <div class="pd-tier-top">
-                        <span class="pd-tier-months">{{ tier.months }}{{ locale === 'zh' ? '个月' : ' mo' }}</span>
-                        <span v-if="tier.label" class="pd-tier-badge">{{ tier.label }}</span>
+                    <div class="pd-tier-chip-content">
+                      <div class="pd-tier-chip-main">
+                        <span class="pd-tier-months">{{ formatTierMonths(tier) }}</span>
+                        <span v-if="tierBadge(tier)" class="pd-tier-badge">{{ tierBadge(tier) }}</span>
                       </div>
                       <div class="pd-tier-prices">
-                        <span class="pd-tier-total">${{ tier.totalPrice }}</span>
-                        <span class="pd-tier-per">{{ (tier.totalPrice / tier.months).toFixed(2) }}/{{ locale === 'zh' ? '月' : 'mo' }}</span>
+                        <span class="pd-tier-total">${{ Number(tier.totalPrice).toFixed(2) }}</span>
+                        <span class="pd-tier-per">${{ tierMonthly(tier) }}/{{ locale === 'zh' ? '月' : 'mo' }}</span>
                       </div>
                     </div>
                   </label>
@@ -272,7 +272,7 @@
                         <svg v-else-if="pm.code === 'WECHAT'" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M9.5 4C6.46 4 4 6.24 4 9c0 1.57.81 2.96 2.08 3.88L5.5 15.5l2.42-1.21c.48.14.99.21 1.53.21.2 0 .39-.01.58-.03C9.7 13.6 9.5 12.72 9.5 11.8c0-3.04 2.81-5.5 6.28-5.5.2 0 .39.01.58.02C15.5 4.9 12.74 4 9.5 4zm-2.75 3.75c.48 0 .88.4.88.88s-.4.87-.88.87-.87-.39-.87-.87.39-.88.87-.88zm4.5 0c.48 0 .88.4.88.88s-.4.87-.88.87-.87-.39-.87-.87.39-.88.87-.88zM15.78 7.5c-2.9 0-5.25 1.97-5.25 4.4 0 2.43 2.35 4.4 5.25 4.4.57 0 1.12-.09 1.63-.24L19.5 17l-.75-1.95C19.55 14.3 20 13.2 20 11.9c0-2.43-2.35-4.4-5.22-4.4zm-1.78 3.25c.35 0 .63.28.63.63s-.28.62-.63.62-.62-.27-.62-.62.28-.63.62-.63zm3.5 0c.35 0 .63.28.63.63s-.28.62-.63.62-.62-.27-.62-.62.28-.63.62-.63z"/>
                         </svg>
-                        <span v-else-if="pm.code === 'ALIPAY' || pm.code === 'ANTOM_ALIPAY'" class="pd-brand-mark">支</span>
+                        <span v-else-if="pm.code === 'ALIPAY'" class="pd-brand-mark">支</span>
                         <svg v-else-if="pm.code === 'BANK_CARD' || pm.code === 'CARD'" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
                         </svg>
@@ -354,6 +354,10 @@
 
     <PurchaseNoticeDialog
       v-model="purchaseNoticeVisible"
+      @confirm="onPurchaseNoticeConfirm"
+    />
+    <GuestCheckoutEmailDialog
+      v-model="guestEmailDialogVisible"
       @confirm="submitOrderAfterNotice"
     />
   </div>
@@ -375,6 +379,7 @@ import { paymentMethodApi } from '@/api/paymentMethod'
 import { ElMessage } from 'element-plus'
 import SiteHeader from '@/components/SiteHeader.vue'
 import PurchaseNoticeDialog from '@/components/PurchaseNoticeDialog.vue'
+import GuestCheckoutEmailDialog from '@/components/GuestCheckoutEmailDialog.vue'
 import { getCurrentLocale } from '@/i18n'
 import { getCountryFlagEmoji } from '@/utils/countryDisplay'
 import { useSiteConfigStore } from '@/stores/siteConfig'
@@ -397,9 +402,53 @@ const userBalance = ref(0)
 const enabledPaymentMethods = ref<any[]>([])
 const placingOrder = ref(false)
 const purchaseNoticeVisible = ref(false)
+const guestEmailDialogVisible = ref(false)
 const devices = ref<Device[]>([])
 const productPricingTiers = ref<ProductPricingTier[]>([])
 const selectedTier = ref<ProductPricingTier | null>(null)
+
+function normalizeTier(raw: any[]): ProductPricingTier[] {
+  return (raw || []).map((t: any) => {
+    const months = Number(t.months) || 0
+    const total = Number(t.totalPrice ?? t.salePrice ?? t.price ?? 0)
+    const perMonth = Number(t.pricePerMonth) || (months > 0 ? total / months : total)
+    return {
+      id: t.id,
+      productId: t.productId,
+      months,
+      pricePerMonth: perMonth,
+      totalPrice: total,
+      label: t.label ?? null,
+      sortOrder: t.sortOrder ?? 0,
+      isActive: t.isActive ?? 1,
+      isDefault: t.isDefault
+    } as ProductPricingTier & { isDefault?: boolean }
+  })
+}
+
+function formatTierMonths(tier: ProductPricingTier) {
+  if (!tier.months) return locale.value === 'zh' ? '按次' : 'Once'
+  return locale.value === 'zh' ? `${tier.months}个月` : `${tier.months} mo`
+}
+
+function tierBadge(tier: ProductPricingTier) {
+  const label = (tier.label || '').trim()
+  if (!label) return ''
+  // hide labels that only repeat the period text
+  const months = String(tier.months || '')
+  if (label === months || label === `${months}个月` || label === `${months} mo` || label === `${months} Month` || label === `${months} Months` || label === '1 个月' || label === '1 Month') {
+    return ''
+  }
+  return label
+}
+
+function tierMonthly(tier: ProductPricingTier) {
+  const months = Number(tier.months) || 0
+  const total = Number(tier.totalPrice) || 0
+  if (months <= 0) return total.toFixed(2)
+  const per = Number(tier.pricePerMonth) || total / months
+  return per.toFixed(2)
+}
 const shippingAddress = ref({ name: '', phone: '', province: '', city: '', postalCode: '', address: '' })
 const customerRemark = ref('')
 
@@ -561,7 +610,6 @@ function getPaymentIconClass(code: string): string {
     USDT: 'usdt-icon',
     WECHAT: 'wechat-icon',
     ALIPAY: 'alipay-icon',
-    ANTOM_ALIPAY: 'alipay-icon',
     BANK_CARD: 'card-icon',
     CARD: 'card-icon',
     BALANCE: 'balance-icon'
@@ -570,11 +618,6 @@ function getPaymentIconClass(code: string): string {
 }
 
 async function handleBuyNow() {
-  if (!authStore.isLoggedIn) {
-    ElMessage.warning(t('checkout.pleaseLogin'))
-    navigateToLogin(router, route)
-    return
-  }
   if (productPricingTiers.value.length > 0 && !selectedTier.value) {
     ElMessage.warning(t('plans.selectPeriodFirst') || 'Please select a plan period'); return
   }
@@ -594,15 +637,34 @@ async function handleBuyNow() {
   purchaseNoticeVisible.value = true
 }
 
-async function submitOrderAfterNotice() {
+function onPurchaseNoticeConfirm() {
+  if (authStore.isLoggedIn) {
+    const email = (authStore.email || authStore.user?.email || '').trim()
+    if (email) {
+      submitOrderAfterNotice(email)
+      return
+    }
+    // 已登录但账号未绑邮箱（如部分管理员账号）时，补填履约邮箱
+    guestEmailDialogVisible.value = true
+    return
+  }
+  guestEmailDialogVisible.value = true
+}
+
+async function submitOrderAfterNotice(emailInput: string) {
   if (!product.value) return
   if (placingOrder.value) { ElMessage.warning(t('checkout.processing') || 'Order is being processed, please wait'); return }
+  const email = (emailInput || '').trim()
+  if (!email) {
+    ElMessage.warning(t('checkout.emailRequired'))
+    return
+  }
   placingOrder.value = true
   try {
     await siteConfig.ensureShippingFee()
     const paymentMethodUpper = paymentMethod.value.toUpperCase()
     const orderData: any = {
-      email: authStore.user?.email || '',
+      email,
       paymentMethod: paymentMethodUpper,
       productId: product.value.id,
       devices: selectedDevices.value.map(id => String(id)),
@@ -618,14 +680,14 @@ async function submitOrderAfterNotice() {
     }
     const res: any = await orderApi.createOrder(orderData)
     if (res.code === 200) {
-      ElMessage.success(t('checkout.processing'))
       const orderId = res.data.id
       const orderNo = res.data.orderNo || String(orderId)
+      ElMessage.success(t('checkout.orderCreatedHint', { orderNo }))
       await navigateByPaymentMethod({
         paymentMethod: paymentMethodUpper,
         orderId,
         orderNo,
-        email: authStore.user?.email,
+        email,
         checkoutUrl: res.data.checkoutUrl,
         router,
       })
@@ -652,7 +714,13 @@ onMounted(async () => {
       product.value = (productRes as any).data
       applyProductSeo()
       const tiersRes: any = await pricingTierApi.getActiveByProduct(id)
-      if (tiersRes.code === 200) productPricingTiers.value = tiersRes.data || []
+      if (tiersRes.code === 200) {
+        productPricingTiers.value = normalizeTier(tiersRes.data || [])
+        const def = productPricingTiers.value.find((t: any) => t.isDefault)
+          || productPricingTiers.value[0]
+          || null
+        selectedTier.value = def
+      }
     }
 
     if (devicesRes && (devicesRes as any).data) {
@@ -663,9 +731,12 @@ onMounted(async () => {
       }))
     }
 
-    if (paymentRes && (paymentRes as any).length > 0) {
+    {
+      const list = Array.isArray((paymentRes as any)?.data)
+        ? (paymentRes as any).data
+        : (Array.isArray(paymentRes) ? paymentRes as any[] : [])
       // 钱包余额支付已下线
-      enabledPaymentMethods.value = (paymentRes as any[]).filter((m: any) => m.code !== 'BALANCE')
+      enabledPaymentMethods.value = list.filter((m: any) => m.code !== 'BALANCE')
       const codes = enabledPaymentMethods.value.map((m: any) => m.code)
       if (!codes.includes(paymentMethod.value.toUpperCase()) && codes.length > 0) {
         paymentMethod.value = codes[0].toLowerCase()
@@ -942,43 +1013,75 @@ onMounted(async () => {
   letter-spacing: -0.02em;
 }
 
-/* Pricing tier chips */
+/* Pricing tier chips — align with Products.vue / old storefront */
 .pd-tier-chips {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.pd-tier-chip { cursor: pointer; display: block; }
-.pd-tier-chip input { display: none; }
-.pd-tier-chip-inner {
-  border: 1.5px solid var(--outline-variant, #c1c6d6);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: #fff;
-  transition: all 0.15s;
-}
-.pd-tier-chip.selected .pd-tier-chip-inner {
-  border-color: var(--primary, #0059b5);
-  background: color-mix(in srgb, var(--primary, #0059b5) 6%, transparent);
-}
-.pd-tier-top {
+.pd-tier-chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: #fff;
+  border: 1.5px solid var(--outline-variant, #c1c6d6);
+  border-radius: 12px;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  position: relative;
+  min-width: 120px;
 }
-.pd-tier-months { font-size: 13px; font-weight: 700; color: var(--text-primary, #1a1b1f); }
+.pd-tier-chip input { display: none; }
+.pd-tier-chip:hover {
+  border-color: var(--primary, #0059b5);
+  box-shadow: 0 2px 8px rgba(0, 89, 181, 0.15);
+}
+.pd-tier-chip.selected {
+  border-color: var(--primary, #0059b5);
+  background: color-mix(in srgb, var(--primary, #0059b5) 10%, transparent);
+  box-shadow: 0 2px 12px rgba(0, 89, 181, 0.18);
+}
+.pd-tier-chip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+.pd-tier-chip-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pd-tier-months {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1a1b1f);
+  white-space: nowrap;
+}
 .pd-tier-badge {
   font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 100px;
-  background: var(--primary, #0059b5);
-  color: #fff;
-  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary, #0059b5) 15%, transparent);
+  color: var(--primary, #0059b5);
+  font-weight: 600;
+  white-space: nowrap;
 }
-.pd-tier-prices { display: flex; flex-direction: column; gap: 1px; }
-.pd-tier-total { font-size: 14px; font-weight: 700; color: var(--primary, #0059b5); }
-.pd-tier-per { font-size: 11px; color: var(--text-muted, #717785); }
+.pd-tier-prices {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.pd-tier-total {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary, #0059b5);
+}
+.pd-tier-per {
+  font-size: 12px;
+  color: var(--text-muted, #717785);
+  font-weight: 500;
+}
 
 /* Devices */
 .pd-devices { display: flex; flex-direction: column; gap: 6px; }
@@ -1251,7 +1354,7 @@ onMounted(async () => {
   .pd-main { padding: 120px 16px 60px; }
   .pd-setup-steps { grid-template-columns: 1fr; }
   .pd-form-row { grid-template-columns: 1fr; }
-  .pd-tier-chips { grid-template-columns: repeat(2, 1fr); }
+  .pd-tier-chip { min-width: calc(50% - 5px); flex: 1 1 calc(50% - 5px); }
   .pd-features-grid { grid-template-columns: 1fr; }
   .pd-payments { grid-template-columns: 1fr; }
   .pd-purchase-head { padding: 16px; }

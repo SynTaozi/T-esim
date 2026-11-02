@@ -174,7 +174,7 @@ function loadTicket() {
   const ticketId = Number(route.params.id)
   getTicketById(ticketId)
     .then((res: any) => {
-      ticket.value = res.ticket
+      ticket.value = res.data
     })
     .catch((err: any) => {
       console.error('Failed to load ticket', err)
@@ -192,11 +192,11 @@ async function submitFollowUp() {
   submitting.value = true
   try {
     const res: any = await followUpTicket(ticket.value.id, followUpContent.value.trim())
-    if (res.success === false) {
+    if (res.code !== 200) {
       ElMessage.error(res.message || t('ticketDetail.followUpFailed'))
       return
     }
-    ticket.value = res.ticket
+    ticket.value = res.data
     followUpContent.value = ''
     ElMessage.success(t('ticketDetail.followUpSuccess'))
   } catch (err: any) {

@@ -46,8 +46,9 @@ async function confirmViaStripe() {
   if (!sessionId.value) return false
   try {
     const res: any = await paymentApi.confirmStripeSession(sessionId.value)
-    if (res?.orderNo) orderNo.value = res.orderNo
-    return !!(res?.paid || res?.paymentStatus === 'paid')
+    const data = res?.data || res
+    if (data?.orderNo) orderNo.value = data.orderNo
+    return !!(data?.paid || data?.paymentStatus === 'paid' || data?.status === 'PAID')
   } catch (e: any) {
     tip.value = e?.message || ''
     return false
@@ -145,7 +146,8 @@ function recheck() {
 }
 
 function goOrders() {
-  router.push('/profile')
+  const token = localStorage.getItem('token')
+  router.push(token ? '/profile' : '/order-lookup')
 }
 
 onMounted(async () => {

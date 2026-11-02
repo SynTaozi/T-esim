@@ -94,7 +94,6 @@ const orderData = ref<any>({
 const iconMap: Record<string, any> = {
   WECHAT: Message,
   ALIPAY: Money,
-  ANTOM_ALIPAY: Money,
   USDT: Wallet,
   BANK_CARD: CreditCard,
   BALANCE: WalletFilled
@@ -108,7 +107,6 @@ function getPaymentLabel(method: string) {
   const labels: Record<string, string> = {
     WECHAT: t('payment.wechatPay'),
     ALIPAY: t('payment.alipay'),
-    ANTOM_ALIPAY: t('payment.alipay'),
     USDT: t('payment.usdt'),
     BANK_CARD: t('payment.bankCard'),
     BALANCE: t('payment.balance')

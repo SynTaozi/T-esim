@@ -42,22 +42,20 @@ export interface Product {
 }
 
 export const productApi = {
-  getProducts: (region?: string, page?: number, size?: number, itemType?: number, sortBy?: string, subCategoryId?: number | null) => {
+  getProducts: (region?: string, page?: number, size?: number, itemType?: number, subCategoryId?: number | null) => {
     const params: any = {}
     if (region) params.region = region
     if (page !== undefined) params.page = page
     if (size !== undefined) params.size = size
     if (itemType !== undefined && itemType !== 0) params.itemType = itemType
-    if (sortBy && sortBy !== 'default') params.sortBy = sortBy
     if (subCategoryId !== undefined && subCategoryId !== null && subCategoryId > 0) params.subCategoryId = subCategoryId
     return api.get('/products', { params })
   },
-  searchProducts: (keyword: string, page?: number, size?: number, itemType?: number, sortBy?: string, subCategoryId?: number | null) => {
+  searchProducts: (keyword: string, page?: number, size?: number, itemType?: number, subCategoryId?: number | null) => {
     const params: any = { keyword }
     if (page !== undefined) params.page = page
     if (size !== undefined) params.size = size
     if (itemType !== undefined && itemType !== 0) params.itemType = itemType
-    if (sortBy && sortBy !== 'default') params.sortBy = sortBy
     if (subCategoryId !== undefined && subCategoryId !== null && subCategoryId > 0) params.subCategoryId = subCategoryId
     return api.get('/products/search', { params })
   },

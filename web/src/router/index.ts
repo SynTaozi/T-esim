@@ -201,13 +201,27 @@ const routes: RouteRecordRaw[] = [
     path: '/checkout',
     name: 'Checkout',
     component: () => import('@/views/Checkout.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
   },
   {
     path: '/order-confirm',
     name: 'OrderConfirm',
     component: () => import('@/views/OrderConfirm.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
+  },
+  {
+    path: '/order-lookup',
+    name: 'OrderLookup',
+    component: () => import('@/views/OrderLookup.vue'),
+    meta: {
+      guest: true,
+      seo: {
+        title: '订单查询 | Tesim',
+        titleEn: 'Order Lookup | Tesim',
+        description: '使用下单邮箱查询订单状态，多笔订单以列表展示，待支付可继续付款。',
+        descriptionEn: 'Look up orders by checkout email. Multiple orders appear as a list; continue payment if needed.'
+      }
+    }
   },
   {
     path: '/orders',
@@ -231,7 +245,7 @@ const routes: RouteRecordRaw[] = [
     path: '/payment-confirm',
     name: 'PaymentConfirm',
     component: () => import('@/views/PaymentConfirm.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
   },
   {
     path: '/tickets',
@@ -255,46 +269,46 @@ const routes: RouteRecordRaw[] = [
     path: '/pay/:id',
     name: 'Pay',
     component: () => import('@/views/UsdtPay.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
   },
   {
     path: '/checkout/usdt/:id',
     name: 'UsdtPay',
     component: () => import('@/views/UsdtPay.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
   },
   {
     path: '/checkout/wechat/:id',
     name: 'WechatPay',
     component: StripeCheckoutRedirect,
     props: { paymentMethod: 'WECHAT' },
-    meta: { requiresAuth: true, paymentMethod: 'WECHAT', seo: { noindex: true } }
+    meta: { guest: true, paymentMethod: 'WECHAT', seo: { noindex: true } }
   },
   {
     path: '/checkout/alipay/:id',
     name: 'Alipay',
     component: StripeCheckoutRedirect,
     props: { paymentMethod: 'ALIPAY' },
-    meta: { requiresAuth: true, paymentMethod: 'ALIPAY', seo: { noindex: true } }
+    meta: { guest: true, paymentMethod: 'ALIPAY', seo: { noindex: true } }
   },
   {
     path: '/checkout/bankcard/:id',
     name: 'BankCardPay',
     component: StripeCheckoutRedirect,
     props: { paymentMethod: 'BANK_CARD' },
-    meta: { requiresAuth: true, paymentMethod: 'BANK_CARD', seo: { noindex: true } }
+    meta: { guest: true, paymentMethod: 'BANK_CARD', seo: { noindex: true } }
   },
   {
     path: '/checkout/stripe/success',
     name: 'StripePaySuccess',
     component: () => import('@/views/StripePaySuccess.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
   },
   {
     path: '/checkout/stripe/cancel',
     name: 'StripePayCancel',
     component: () => import('@/views/StripePayCancel.vue'),
-    meta: { requiresAuth: true, seo: { noindex: true } }
+    meta: { guest: true, seo: { noindex: true } }
   },
   {
     path: '/:pathMatch(.*)*',

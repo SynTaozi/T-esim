@@ -349,17 +349,16 @@ function goBack() {
 }
 
 async function fetchOrder() {
-  // 检查登录状态
-  if (!authStore.isLoggedIn) {
-    ElMessage.warning(t('usdtPay.pleaseLogin'))
-    navigateToLogin(router, route)
-    return
-  }
-
   const idParam = route.params.id as string
-  
+  const queryOrderNo = typeof route.query.orderNo === 'string' ? route.query.orderNo : ''
+
   // 尝试作为充值订单号获取 (充值订单号格式: RC20260xxx)
   if (idParam.startsWith('RC')) {
+    if (!authStore.isLoggedIn) {
+      ElMessage.warning(t('usdtPay.pleaseLogin'))
+      navigateToLogin(router, route)
+      return
+    }
     try {
       const res: any = await fetch(`/api/recharges/rechargeNo/${idParam}`, {
         headers: {
@@ -378,10 +377,47 @@ async function fetchOrder() {
       console.error('Failed to fetch recharge:', e)
     }
   }
+
+  // Guest-friendly path: prefer orderNo from query and load payment publicly
+  if (queryOrderNo) {
+    try {
+      await fetchUsdtPaymentByOrderNo(queryOrderNo)
+      if (!order.value) {
+        order.value = {
+          id: Number(idParam) || undefined,
+          orderNo: queryOrderNo,
+          orderNoText: queryOrderNo,
+          totalAmount: Number(paymentOrder.value?.amount || paymentOrder.value?.usdtAmount || 0),
+          finalAmount: Number(paymentOrder.value?.amount || 0),
+          status: paymentOrder.value?.status === 'SUCCESS' || paymentOrder.value?.payStatus === 'SUCCESS' ? 1 : 0,
+          statusText: paymentOrder.value?.status || paymentOrder.value?.payStatus || 'PENDING',
+          email: '',
+          shippingAddress: '',
+          remark: '',
+          paymentMethod: 'USDT',
+          trackingNumber: '',
+          shippingCarrier: '',
+          orderType: 'PURCHASE',
+          renewalOrderId: 0,
+          items: [],
+          createdAt: '',
+          updatedAt: '',
+          usdtAmount: paymentOrder.value?.usdtAmount,
+          usdtAddress: paymentOrder.value?.usdtAddress,
+          paymentExpireTime: paymentOrder.value?.expireTime,
+          paymentStatus: paymentOrder.value?.status || paymentOrder.value?.payStatus
+        } as any
+      }
+      loading.value = false
+      return
+    } catch (e) {
+      console.error('Failed to load guest USDT payment:', e)
+    }
+  }
   
-  // 尝试作为数字ID获取订单
+  // 尝试作为数字ID获取订单（登录用户）
   const id = Number(idParam)
-  if (!isNaN(id)) {
+  if (!isNaN(id) && authStore.isLoggedIn) {
     try {
       const res: any = await orderApi.getOrderById(id)
       if (res.code === 200) {
@@ -399,6 +435,11 @@ async function fetchOrder() {
         navigateToLogin(router, route)
       }
     }
+  }
+
+  if (!authStore.isLoggedIn && !queryOrderNo) {
+    ElMessage.warning(t('orderLookup.tip'))
+    router.push('/order-lookup')
   }
   
   loading.value = false
@@ -426,14 +467,15 @@ async function fetchUsdtPaymentByOrderNo(orderNo: string) {
 
     // 旧流程 / 充值订单：通过 API 查询支付状态
     const res: any = await paymentApi.queryPaymentByOrderNo(orderNo)
-    if (res.success) {
-      paymentOrder.value = res
-      usdtAddress.value = res.usdtAddress || ''
-      usdtAmount.value = res.usdtAmount?.toString() || '0'
-      orderCreateTime.value = res.createTime || Date.now()
+    if (res.code === 200 && res.data) {
+      const pay = res.data
+      paymentOrder.value = pay
+      usdtAddress.value = pay.usdtAddress || ''
+      usdtAmount.value = pay.usdtAmount?.toString() || '0'
+      orderCreateTime.value = pay.createTime || Date.now()
       // 使用第三方返回的过期时间计算倒计时
-      if (res.expireTime) {
-        countdown.value = Math.max(0, Math.floor((res.expireTime - Date.now()) / 1000))
+      if (pay.expireTime) {
+        countdown.value = Math.max(0, Math.floor((pay.expireTime - Date.now()) / 1000))
       }
     } else {
       // 如果没有找到支付订单，检查订单是否已过期
@@ -464,14 +506,15 @@ async function createUsdtPayment(orderNo: string, amount: number, productName: s
       productName,
       remark: ''
     })
-    if (res.success) {
-      paymentOrder.value = res
-      usdtAddress.value = res.usdtAddress || ''
-      usdtAmount.value = res.usdtAmount?.toString() || '0'
-      orderCreateTime.value = res.createTime || Date.now()
+    if (res.code === 200 && res.data) {
+      const pay = res.data
+      paymentOrder.value = pay
+      usdtAddress.value = pay.usdtAddress || ''
+      usdtAmount.value = pay.usdtAmount?.toString() || '0'
+      orderCreateTime.value = pay.createTime || Date.now()
       // 使用第三方返回的过期时间计算倒计时
-      if (res.expireTime) {
-        countdown.value = Math.max(0, Math.floor((res.expireTime - Date.now()) / 1000))
+      if (pay.expireTime) {
+        countdown.value = Math.max(0, Math.floor((pay.expireTime - Date.now()) / 1000))
       }
     }
   } catch (e) {
@@ -493,15 +536,16 @@ async function pollPaymentStatus() {
     if (!orderNo) return
     
     const res: any = await paymentApi.queryPaymentByOrderNo(orderNo)
-    if (res.success) {
+    if (res.code === 200 && res.data) {
+      const pay = res.data
       console.log('【轮询】支付状态查询结果:', {
         orderNo,
-        status: res.status,
+        status: pay.status,
         timestamp: new Date().toISOString()
       })
       
       // 检测到支付成功
-      if (res.status === 'PAID') {
+      if (pay.status === 'PAID' || pay.status === 'SUCCESS') {
         // 支付成功，停止定时器
         if (timer) {
           clearInterval(timer)

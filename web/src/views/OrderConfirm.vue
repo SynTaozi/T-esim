@@ -160,6 +160,11 @@
         </div>
       </div>
     </div>
+
+    <GuestCheckoutEmailDialog
+      v-model="guestEmailDialogVisible"
+      @confirm="placeOrderWithEmail"
+    />
   </div>
 </template>
 
@@ -170,6 +175,7 @@ import { ArrowLeft, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import SiteHeader from '@/components/SiteHeader.vue'
+import GuestCheckoutEmailDialog from '@/components/GuestCheckoutEmailDialog.vue'
 import { orderApi } from '@/api/order'
 import { validateCoupon } from '@/api/coupon'
 import { resolveCouponTip, resolveCouponTipOrNull } from '@/utils/couponMessage'
@@ -206,6 +212,7 @@ const couponMessage = ref('')
 const appliedCode = ref('')
 const appliedDiscount = ref(0)
 const customerRemark = ref('')
+const guestEmailDialogVisible = ref(false)
 
 const payablePrice = computed(() =>
   Math.max(0, Number(((orderData.value.totalAmount || 0) - appliedDiscount.value).toFixed(2)))
@@ -390,20 +397,37 @@ function handleCancel() {
 }
 
 async function handleConfirm() {
-  if (!authStore.isLoggedIn) {
+  if ((orderData.value.type === 'RECHARGE' || orderData.value.type === 'RENEWAL') && !authStore.isLoggedIn) {
     ElMessage.warning(t('checkout.pleaseLogin'))
     navigateToLogin(router, route)
     return
   }
-
-  const userEmail = authStore.user?.email || authStore.user?.username
-  if (!userEmail) {
+  if (submitting.value) {
+    ElMessage.warning('订单正在处理中，请勿重复点击')
+    return
+  }
+  if (authStore.isLoggedIn) {
+    const email = (authStore.email || authStore.user?.email || '').trim()
+    if (email) {
+      await placeOrderWithEmail(email)
+      return
+    }
+    if (orderData.value.type === 'PURCHASE') {
+      guestEmailDialogVisible.value = true
+      return
+    }
     ElMessage.warning(t('checkout.loginRequired'))
-    authStore.logout()
+    return
+  }
+  if (orderData.value.type !== 'PURCHASE') {
+    ElMessage.warning(t('checkout.pleaseLogin'))
     navigateToLogin(router, route)
     return
   }
+  guestEmailDialogVisible.value = true
+}
 
+async function placeOrderWithEmail(userEmail: string) {
   // 【防抖】防止重复提交
   if (submitting.value) {
     ElMessage.warning('订单正在处理中，请勿重复点击')
@@ -453,7 +477,7 @@ async function handleConfirm() {
         // 清除确认数据
         sessionStorage.removeItem('orderConfirmData')
         
-        ElMessage.success(t('orderConfirm.orderCreated'))
+        ElMessage.success(t('checkout.orderCreatedHint', { orderNo: order.orderNo || orderId }))
         
         // 添加小延迟确保后端数据已持久化
         await new Promise(resolve => setTimeout(resolve, 300))
@@ -472,7 +496,7 @@ async function handleConfirm() {
                 remark: `购买 ${orderData.value.product?.country || ''} ${orderData.value.product?.name || ''}`
               })
               console.log('✅ USDT payment created:', paymentRes)
-              if (paymentRes.success) {
+              if (paymentRes.code === 200 || paymentRes.data) {
                 console.log('USDT payment created:', paymentRes)
               }
             } catch (e) {
@@ -480,27 +504,31 @@ async function handleConfirm() {
               // 即使 USDT 支付创建失败，仍然跳转，因为订单已创建
             }
             console.log('🔀 Navigating to /checkout/usdt/' + orderId)
-            router.push('/checkout/usdt/' + orderId)
+            router.push({ path: '/checkout/usdt/' + orderId, query: { orderNo: order.orderNo || String(orderId) } })
             break
           case 'wechat':
           case 'alipay':
           case 'bankcard':
-          case 'antom_alipay':
             await navigateByPaymentMethod({
               paymentMethod: orderData.value.paymentMethod,
               orderId,
               orderNo: order?.orderNo || orderId,
-              email: authStore.user?.email,
+              email: userEmail,
               router,
             })
             break
           case 'balance':
+            if (!authStore.isLoggedIn) {
+              ElMessage.warning(t('checkout.pleaseLogin'))
+              navigateToLogin(router, route)
+              break
+            }
             console.log('🔀 Navigating to /checkout/balance/' + orderId)
             router.push('/checkout/balance/' + orderId)
             break
           default:
             console.warn('⚠️ Unknown payment method:', orderData.value.paymentMethod)
-            router.push('/profile')
+            router.push(authStore.isLoggedIn ? '/profile' : '/order-lookup')
         }
       } else {
         ElMessage.error(resolveCouponTipOrNull(t, { message: res.message }) || res.message || t('orderConfirm.createFailed'))
