@@ -23,6 +23,8 @@ public class AdminProductVO {
     private String summaryEn;
     private String features;
     private String featuresEn;
+    private String notesZh;
+    private String notesEn;
     private BigDecimal price;
     private BigDecimal originalPrice;
     private BigDecimal physicalCost;

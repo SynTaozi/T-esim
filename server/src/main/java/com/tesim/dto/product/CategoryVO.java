@@ -10,6 +10,8 @@ public class CategoryVO {
     private String code;
     private Long parentId;
     private String name;
+    private String nameZh;
+    private String nameEn;
     private String description;
     private String icon;
     private Integer sortOrder;

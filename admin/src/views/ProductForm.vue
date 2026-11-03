@@ -1,135 +1,207 @@
 <template>
-  <div>
-    <PageHeader :title="isEdit ? '编辑产品' : '新建产品'" subtitle="维护商品信息、覆盖区域与定价档">
+  <div class="product-form-page" v-loading="loading">
+    <PageHeader :title="isEdit ? '编辑产品' : '新建产品'" :subtitle="isEdit ? `ID ${route.params.id}` : '填写基础信息后保存，可继续完善说明与定价'">
       <template #actions>
-        <el-button @click="$router.back()">返回</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="$router.push('/products')">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="save">{{ isEdit ? '保存' : '创建' }}</el-button>
       </template>
     </PageHeader>
 
-    <div class="page-card" v-loading="loading">
-      <el-form :model="form" label-width="110px">
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="SPU 编码">
-              <el-input v-model="form.spuCode" placeholder="留空自动生成" :disabled="isEdit" />
+    <el-form :model="form" label-position="top" class="product-form" require-asterisk-position="right">
+      <div class="form-layout">
+        <div class="form-main">
+          <!-- 标题 -->
+          <section class="form-card">
+            <h3 class="card-title">标题</h3>
+            <el-form-item label="中文名称" required>
+              <el-input v-model="form.nameZh" size="large" placeholder="前台展示的中文名" />
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="类型">
+            <el-form-item label="英文名称">
+              <el-input v-model="form.nameEn" placeholder="English name" />
+            </el-form-item>
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="中文简介">
+                  <el-input v-model="form.summaryZh" type="textarea" :rows="2" placeholder="详情页标题下方短文案" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="英文简介">
+                  <el-input v-model="form.summaryEn" type="textarea" :rows="2" placeholder="Short blurb under title" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </section>
+
+          <!-- 媒体 -->
+          <section class="form-card">
+            <h3 class="card-title">媒体</h3>
+            <el-form-item label="展示图 URL">
+              <el-input v-model="form.displayImageUrl" placeholder="https://..." clearable />
+              <div class="field-hint">用于列表卡与详情页主图</div>
+            </el-form-item>
+            <div v-if="form.displayImageUrl" class="media-preview">
+              <img :src="form.displayImageUrl" alt="preview" @error="onPreviewError" />
+            </div>
+          </section>
+
+          <!-- 覆盖与规格 -->
+          <section class="form-card">
+            <h3 class="card-title">覆盖与规格</h3>
+            <el-form-item label="覆盖区域">
+              <el-select
+                v-model="form.coverageRegions"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="选择或输入区域，如 Asia / Global"
+                style="width: 100%"
+              >
+                <el-option v-for="r in regionOptions" :key="r" :label="r" :value="r" />
+              </el-select>
+            </el-form-item>
+            <el-row :gutter="16">
+              <el-col :xs="24" :sm="12">
+                <el-form-item label="流量">
+                  <el-input v-model="form.dataLimit" placeholder="如 1GB / Unlimited" />
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :sm="12">
+                <el-form-item label="基础有效天数">
+                  <el-input-number v-model="form.baseValidityDays" :min="0" :controls="false" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </section>
+
+          <!-- 说明与特性 -->
+          <section class="form-card">
+            <div class="card-title-row">
+              <h3 class="card-title">说明与特性</h3>
+              <el-radio-group v-model="contentLangTab" size="small">
+                <el-radio-button label="zh">中文</el-radio-button>
+                <el-radio-button label="en">English</el-radio-button>
+              </el-radio-group>
+            </div>
+            <template v-if="contentLangTab === 'zh'">
+              <el-form-item label="产品说明">
+                <el-input v-model="notesZhText" type="textarea" :rows="5" placeholder="详情页左侧「产品说明」，支持换行" />
+              </el-form-item>
+              <el-form-item label="产品特性">
+                <el-input v-model="featuresZhText" type="textarea" :rows="6" placeholder="每行一条，例如：&#10;高速流量&#10;支持热点&#10;!需解锁设备" />
+                <div class="field-hint">一行一条；以 ! 开头显示为提醒样式</div>
+              </el-form-item>
+            </template>
+            <template v-else>
+              <el-form-item label="Product details">
+                <el-input v-model="notesEnText" type="textarea" :rows="5" placeholder="Left-side product note" />
+              </el-form-item>
+              <el-form-item label="Product specs">
+                <el-input v-model="featuresEnText" type="textarea" :rows="6" placeholder="One feature per line" />
+                <div class="field-hint">One per line; prefix with ! for warning style</div>
+              </el-form-item>
+            </template>
+          </section>
+
+          <!-- 定价档 -->
+          <section class="form-card">
+            <div class="card-title-row">
+              <h3 class="card-title">定价档</h3>
+              <el-button type="primary" plain size="small" @click="addSku">添加档位</el-button>
+            </div>
+            <div v-if="!form.skus.length" class="empty-skus">
+              暂无定价档，点击右上角添加
+            </div>
+            <div v-else class="sku-list">
+              <div v-for="(row, index) in form.skus" :key="index" class="sku-row">
+                <div class="sku-row__main">
+                  <el-input v-model="row.labelZh" placeholder="标签，如 1个月" />
+                  <el-input-number v-model="row.months" :min="0" :controls="false" placeholder="月" />
+                  <el-input-number v-model="row.durationDays" :min="0" :controls="false" placeholder="天数" />
+                  <el-input-number v-model="row.salePrice" :min="0" :precision="2" :controls="false" placeholder="售价 USD" />
+                </div>
+                <div class="sku-row__meta">
+                  <el-checkbox v-model="row.isDefault" @change="onDefaultChange(index)">默认档</el-checkbox>
+                  <el-button link type="danger" @click="form.skus.splice(index, 1)">删除</el-button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="form-side">
+          <section class="form-card side-card sticky-card">
+            <h3 class="card-title">发布</h3>
+            <el-form-item label="上架状态">
+              <el-radio-group v-model="form.status" class="status-group">
+                <el-radio-button label="ON_SALE">上架</el-radio-button>
+                <el-radio-button label="DRAFT">草稿</el-radio-button>
+                <el-radio-button label="OFF_SALE">下架</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="角标">
+              <el-radio-group v-model="badgeMark" class="status-group">
+                <el-radio-button label="none">无</el-radio-button>
+                <el-radio-button label="hot">Hot</el-radio-button>
+                <el-radio-button label="featured">Featured</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="卡片类型">
+              <el-radio-group v-model="physicalType" class="status-group">
+                <el-radio-button :label="0">eSIM</el-radio-button>
+                <el-radio-button :label="1">实体卡</el-radio-button>
+              </el-radio-group>
+              <div class="field-hint">实体卡下单须选设备并填地址</div>
+            </el-form-item>
+            <el-form-item label="排序">
+              <el-input-number v-model="form.sortOrder" :min="0" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </section>
+
+          <section class="form-card side-card">
+            <h3 class="card-title">分类</h3>
+            <el-form-item label="产品类型">
               <el-select v-model="form.productKind" style="width: 100%">
                 <el-option label="ESIM" value="ESIM" />
                 <el-option label="PHONE" value="PHONE" />
                 <el-option label="DEVICE" value="DEVICE" />
               </el-select>
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="中文名" required>
-              <el-input v-model="form.nameZh" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="英文名">
-              <el-input v-model="form.nameEn" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="大分类">
               <div class="select-with-action">
-                <el-select v-model="rootId" style="flex: 1" clearable @change="onRootChange">
+                <el-select v-model="rootId" clearable placeholder="选择大类" style="flex: 1" @change="onRootChange">
                   <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
                 </el-select>
                 <el-button @click="openCatDialog('root')">+</el-button>
               </div>
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="二级分类" required>
               <div class="select-with-action">
-                <el-select v-model="form.categoryId" style="flex: 1" clearable>
+                <el-select v-model="form.categoryId" clearable placeholder="选择二级分类" style="flex: 1">
                   <el-option v-for="c in children" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
                 </el-select>
                 <el-button @click="openCatDialog('child')">+</el-button>
               </div>
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="状态">
-              <el-select v-model="form.status" style="width: 100%">
-                <el-option label="上架" value="ON_SALE" />
-                <el-option label="草稿" value="DRAFT" />
-                <el-option label="下架" value="OFF_SALE" />
-              </el-select>
+            <el-form-item label="SPU 编码">
+              <el-input v-model="form.spuCode" placeholder="留空自动生成" :disabled="isEdit" />
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="排序">
-              <el-input-number v-model="form.sortOrder" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="流量">
-              <el-input v-model="form.dataLimit" placeholder="如 1GB / Unlimited" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="有效天数">
-              <el-input-number v-model="form.baseValidityDays" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="中文简介">
-              <el-input v-model="form.summaryZh" type="textarea" :rows="2" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="展示图 URL">
-              <el-input v-model="form.displayImageUrl" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="覆盖区域">
-              <el-select v-model="form.coverageRegions" multiple filterable allow-create style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="标记">
-              <el-checkbox v-model="form.isFeatured">精选</el-checkbox>
-              <el-checkbox v-model="form.isHot">热门</el-checkbox>
-              <el-checkbox v-model="form.isPhysical">实物</el-checkbox>
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
+          </section>
 
-      <div class="sku-head">
-        <h3>定价档</h3>
-        <el-button size="small" @click="addSku">添加档位</el-button>
+          <section class="form-card side-card side-actions-card">
+            <div class="side-actions">
+              <el-button class="side-action-btn" @click="$router.push('/products')">取消</el-button>
+              <el-button class="side-action-btn" type="primary" :loading="saving" @click="save">
+                {{ isEdit ? '保存' : '创建' }}
+              </el-button>
+            </div>
+          </section>
+        </aside>
       </div>
-      <el-table :data="form.skus" size="small">
-        <el-table-column label="中文标签">
-          <template #default="{ row }"><el-input v-model="row.labelZh" /></template>
-        </el-table-column>
-        <el-table-column label="月" width="90">
-          <template #default="{ row }"><el-input-number v-model="row.months" :min="0" controls-position="right" /></template>
-        </el-table-column>
-        <el-table-column label="天数" width="100">
-          <template #default="{ row }"><el-input-number v-model="row.durationDays" :min="0" controls-position="right" /></template>
-        </el-table-column>
-        <el-table-column label="售价" width="120">
-          <template #default="{ row }"><el-input-number v-model="row.salePrice" :min="0" :precision="2" controls-position="right" /></template>
-        </el-table-column>
-        <el-table-column label="默认" width="70">
-          <template #default="{ row }"><el-switch v-model="row.isDefault" /></template>
-        </el-table-column>
-        <el-table-column label="" width="70">
-          <template #default="{ $index }">
-            <el-button link type="danger" @click="form.skus.splice($index, 1)">删</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+    </el-form>
 
     <el-dialog
       v-model="catVisible"
@@ -137,7 +209,7 @@
       width="480px"
       destroy-on-close
     >
-      <el-form :model="catForm" label-width="90px">
+      <el-form :model="catForm" label-position="top">
         <el-form-item v-if="catMode === 'child'" label="所属大类">
           <el-select v-model="catForm.parentId" style="width: 100%">
             <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
@@ -177,22 +249,29 @@ const saving = ref(false)
 const roots = ref<any[]>([])
 const children = ref<any[]>([])
 const rootId = ref<number>()
+const contentLangTab = ref<'zh' | 'en'>('zh')
+const badgeMark = ref<'none' | 'hot' | 'featured'>('none')
+const physicalType = ref<0 | 1>(0)
+const notesZhText = ref('')
+const notesEnText = ref('')
+const featuresZhText = ref('')
+const featuresEnText = ref('')
+const regionOptions = ['Asia', 'Europe', 'America', 'Oceania', 'Africa', 'Global']
+
 const form = reactive<any>({
   spuCode: '',
   productKind: 'ESIM',
   nameZh: '',
   nameEn: '',
   summaryZh: '',
+  summaryEn: '',
   categoryId: undefined,
   status: 'DRAFT',
   sortOrder: 0,
   dataLimit: '',
   baseValidityDays: 30,
   displayImageUrl: '',
-  coverageRegions: [],
-  isFeatured: false,
-  isHot: false,
-  isPhysical: false,
+  coverageRegions: [] as string[],
   skus: [] as any[]
 })
 
@@ -206,6 +285,31 @@ const catForm = reactive({
   nameEn: ''
 })
 
+function featuresToText(raw: unknown): string {
+  if (!raw) return ''
+  if (Array.isArray(raw)) return raw.map(String).join('\n')
+  if (typeof raw === 'string') {
+    const s = raw.trim()
+    if (!s) return ''
+    try {
+      const parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) return parsed.map(String).join('\n')
+    } catch {
+      /* plain */
+    }
+    return s
+  }
+  return ''
+}
+
+function textToFeaturesJson(text: string): string {
+  const items = (text || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  return JSON.stringify(items)
+}
+
 function addSku() {
   form.skus.push({
     labelZh: '',
@@ -216,6 +320,18 @@ function addSku() {
     status: 1,
     sortOrder: form.skus.length
   })
+}
+
+function onDefaultChange(index: number) {
+  if (!form.skus[index]?.isDefault) return
+  form.skus.forEach((s: any, i: number) => {
+    if (i !== index) s.isDefault = false
+  })
+}
+
+function onPreviewError(e: Event) {
+  const img = e.target as HTMLImageElement
+  img.style.display = 'none'
 }
 
 async function loadRoots() {
@@ -266,7 +382,7 @@ async function saveCategory() {
     categoryId: catForm.parentId,
     sortOrder: 0,
     status: 1,
-    showOnFront: true
+    showOnFront: catMode.value === 'root'
   }
   catSaving.value = true
   try {
@@ -310,6 +426,10 @@ async function save() {
       nameEn: (form.nameEn || '').trim() || undefined,
       summaryZh: form.summaryZh ?? '',
       summaryEn: form.summaryEn ?? '',
+      notesZh: notesZhText.value ?? '',
+      notesEn: notesEnText.value ?? '',
+      features: textToFeaturesJson(featuresZhText.value),
+      featuresEn: textToFeaturesJson(featuresEnText.value),
       spuCode: (form.spuCode || '').trim() || undefined,
       productKind: form.productKind,
       categoryId: form.categoryId,
@@ -322,14 +442,15 @@ async function save() {
       displayImageUrl: form.displayImageUrl || undefined,
       imageUrl: form.displayImageUrl || undefined,
       applicableRegions: form.coverageRegions || [],
-      isFeatured: !!form.isFeatured,
-      isHot: !!form.isHot,
-      isPhysical: !!form.isPhysical,
-      isPhysicalCard: form.isPhysical ? 1 : 0,
-      skus: (form.skus || []).map((s: any) => ({
+      isHot: badgeMark.value === 'hot',
+      isFeatured: badgeMark.value === 'featured',
+      isPhysical: physicalType.value === 1,
+      isPhysicalCard: physicalType.value,
+      skus: (form.skus || []).map((s: any, i: number) => ({
         ...s,
         label: s.labelZh || s.label,
-        labelEn: s.labelEn
+        labelEn: s.labelEn,
+        sortOrder: i
       }))
     }
     const res = isEdit.value
@@ -358,13 +479,22 @@ onMounted(async () => {
     const data = res.data || {}
     Object.assign(form, data)
     if (!form.skus) form.skus = []
-    form.summaryZh = data.summaryZh ?? data.summary ?? ''
-    form.isFeatured = !!data.isFeatured
-    form.isHot = !!data.isHot
-    form.isPhysical = data.isPhysical != null ? !!data.isPhysical : data.isPhysicalCard === 1
+    form.skus = (form.skus || []).map((s: any) => ({
+      ...s,
+      labelZh: s.labelZh || s.label || ''
+    }))
+    form.summaryZh = data.summaryZh ?? ''
+    form.summaryEn = data.summaryEn ?? ''
+    notesZhText.value = data.notesZh ?? ''
+    notesEnText.value = data.notesEn ?? ''
+    featuresZhText.value = featuresToText(data.features)
+    featuresEnText.value = featuresToText(data.featuresEn)
+    if (data.isHot) badgeMark.value = 'hot'
+    else if (data.isFeatured) badgeMark.value = 'featured'
+    else badgeMark.value = 'none'
+    physicalType.value = data.isPhysical || data.isPhysicalCard === 1 ? 1 : 0
     form.baseValidityDays = data.baseValidityDays ?? data.validityDays ?? 30
     form.coverageRegions = data.applicableRegions || data.coverageRegions || []
-    // 后端 VO 的 categoryId 即二级分类；需反查所属大类
     const subId = data.subCategoryId || data.categoryId
     form.categoryId = subId
     if (subId) {
@@ -378,9 +508,9 @@ onMounted(async () => {
         }
       }
     }
-    // VO 用 1/0，表单用字符串
-    if (data.status === 1) form.status = 'ON_SALE'
-    else if (data.status === 0) form.status = 'OFF_SALE'
+    if (data.status === 1 || data.status === 'ON_SALE') form.status = 'ON_SALE'
+    else if (data.status === 'DRAFT') form.status = 'DRAFT'
+    else form.status = 'OFF_SALE'
   } finally {
     loading.value = false
   }
@@ -388,20 +518,182 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.sku-head {
+.product-form-page {
+  padding-bottom: 32px;
+}
+
+.form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.form-main,
+.form-side {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 12px 0;
+  flex-direction: column;
+  gap: 16px;
 }
-.sku-head h3 {
-  margin: 0;
+
+.form-card {
+  background: #fff;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 20px 20px 8px;
+  box-shadow: var(--admin-shadow, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+.side-card {
+  padding-bottom: 12px;
+}
+
+.sticky-card {
+  position: sticky;
+  top: 16px;
+  z-index: 2;
+}
+
+.card-title {
+  margin: 0 0 16px;
   font-size: 15px;
+  font-weight: 650;
+  color: var(--admin-text, #0f172a);
 }
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.card-title-row .card-title {
+  margin-bottom: 0;
+}
+
+.field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+  line-height: 1.4;
+}
+
 .select-with-action {
   display: flex;
   gap: 8px;
   width: 100%;
   align-items: center;
+}
+
+.status-group {
+  width: 100%;
+  display: flex;
+}
+
+.status-group :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.status-group :deep(.el-radio-button__inner) {
+  width: 100%;
+}
+
+.media-preview {
+  margin: -4px 0 14px;
+  width: 160px;
+  height: 100px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  background: #f8fafc;
+}
+
+.media-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.empty-skus {
+  padding: 24px 12px 20px;
+  text-align: center;
+  color: var(--admin-muted, #64748b);
+  font-size: 13px;
+  border: 1px dashed var(--admin-border, #e5e7eb);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.sku-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sku-row {
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 12px;
+  background: #fafbfc;
+}
+
+.sku-row__main {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.7fr 0.9fr;
+  gap: 10px;
+}
+
+.sku-row__main :deep(.el-input-number) {
+  width: 100%;
+}
+
+.sku-row__meta {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.side-actions-card {
+  padding: 16px 20px !important;
+}
+
+.side-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.side-action-btn {
+  width: 100%;
+  margin: 0 !important;
+}
+
+.product-form :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.product-form :deep(.el-form-item__label) {
+  margin-bottom: 6px;
+  font-weight: 550;
+  color: var(--admin-muted, #64748b);
+  line-height: 1.2;
+}
+
+@media (max-width: 960px) {
+  .form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sticky-card {
+    position: static;
+  }
+
+  .sku-row__main {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 </style>

@@ -38,12 +38,7 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
         int p = page == null ? 0 : page;
         int s = size == null ? 12 : size;
         LambdaQueryWrapper<Product> qw = baseOnSale();
-        if (itemType != null && itemType > 0) {
-            qw.eq(Product::getCategoryId, itemType);
-        }
-        if (subCategoryId != null && subCategoryId > 0) {
-            qw.eq(Product::getCategoryId, subCategoryId);
-        }
+        applyCategoryFilter(qw, itemType, subCategoryId);
         qw.orderByAsc(Product::getSortOrder).orderByDesc(Product::getId);
         Page<Product> result = productService.page(new Page<>(p + 1L, s), qw);
         List<ProductVO> products = result.getRecords().stream()
@@ -75,12 +70,7 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
         } else if (StringUtils.hasText(keyword)) {
             qw.like(Product::getSpuCode, keyword.trim());
         }
-        if (itemType != null && itemType > 0) {
-            qw.eq(Product::getCategoryId, itemType);
-        }
-        if (subCategoryId != null && subCategoryId > 0) {
-            qw.eq(Product::getCategoryId, subCategoryId);
-        }
+        applyCategoryFilter(qw, itemType, subCategoryId);
         qw.orderByAsc(Product::getSortOrder).orderByDesc(Product::getId);
         Page<Product> result = productService.page(new Page<>(p + 1L, s), qw);
         return ProductListVO.builder()
@@ -89,6 +79,28 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                 .page(p)
                 .size(s)
                 .build();
+    }
+
+    /** 二级分类优先；否则按大类及其子类过滤（商品挂在二级分类上） */
+    private void applyCategoryFilter(LambdaQueryWrapper<Product> qw, Long rootId, Long subCategoryId) {
+        if (subCategoryId != null && subCategoryId > 0) {
+            qw.eq(Product::getCategoryId, subCategoryId);
+            return;
+        }
+        if (rootId == null || rootId <= 0) {
+            return;
+        }
+        List<Long> childIds = productCategoryService.list(new LambdaQueryWrapper<ProductCategory>()
+                        .eq(ProductCategory::getParentId, rootId)
+                        .eq(ProductCategory::getStatus, 1))
+                .stream()
+                .map(ProductCategory::getId)
+                .toList();
+        if (childIds.isEmpty()) {
+            qw.eq(Product::getCategoryId, rootId);
+        } else {
+            qw.and(w -> w.eq(Product::getCategoryId, rootId).or().in(Product::getCategoryId, childIds));
+        }
     }
 
     public List<ProductVO> featured(Integer size) {
@@ -163,31 +175,53 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     }
 
     public List<CategoryVO> categories() {
+        // 前台顶栏只展示大分类；二级分类走侧边悬浮栏
+        return listCategoryVos(null, true);
+    }
+
+    public List<CategoryVO> subcategories(Long categoryId) {
+        if (categoryId == null) {
+            return List.of();
+        }
+        return listCategoryVos(categoryId, false);
+    }
+
+    private List<CategoryVO> listCategoryVos(Long parentId, boolean rootsOnlyFront) {
         String locale = LocaleHelper.current();
-        List<ProductCategory> cats = productCategoryService.list(new LambdaQueryWrapper<ProductCategory>()
+        LambdaQueryWrapper<ProductCategory> qw = new LambdaQueryWrapper<ProductCategory>()
                 .eq(ProductCategory::getStatus, 1)
-                .eq(ProductCategory::getShowOnFront, true)
-                .orderByAsc(ProductCategory::getSortOrder));
-        return cats.stream().map(c -> {
-            I18nProductCategory i18n = i18nProductCategoryService.getOne(new LambdaQueryWrapper<I18nProductCategory>()
+                .orderByAsc(ProductCategory::getSortOrder)
+                .orderByAsc(ProductCategory::getId);
+        if (parentId == null) {
+            qw.and(w -> w.isNull(ProductCategory::getParentId).or().eq(ProductCategory::getParentId, 0));
+            if (rootsOnlyFront) {
+                qw.eq(ProductCategory::getShowOnFront, true);
+            }
+        } else {
+            qw.eq(ProductCategory::getParentId, parentId);
+        }
+        return productCategoryService.list(qw).stream().map(c -> {
+            I18nProductCategory zh = i18nProductCategoryService.getOne(new LambdaQueryWrapper<I18nProductCategory>()
                     .eq(I18nProductCategory::getCategoryId, c.getId())
-                    .eq(I18nProductCategory::getLocale, locale));
+                    .eq(I18nProductCategory::getLocale, "zh"));
+            I18nProductCategory en = i18nProductCategoryService.getOne(new LambdaQueryWrapper<I18nProductCategory>()
+                    .eq(I18nProductCategory::getCategoryId, c.getId())
+                    .eq(I18nProductCategory::getLocale, "en"));
+            I18nProductCategory cur = "en".equals(locale) ? (en != null ? en : zh) : (zh != null ? zh : en);
+            String nameZh = zh != null ? zh.getName() : c.getCode();
+            String nameEn = en != null ? en.getName() : null;
             return CategoryVO.builder()
                     .id(c.getId())
                     .code(c.getCode())
                     .parentId(c.getParentId())
-                    .name(i18n != null ? i18n.getName() : c.getCode())
-                    .description(i18n != null ? i18n.getDescription() : null)
+                    .name(cur != null ? cur.getName() : c.getCode())
+                    .nameZh(nameZh)
+                    .nameEn(nameEn)
+                    .description(cur != null ? cur.getDescription() : null)
                     .icon(c.getIcon())
                     .sortOrder(c.getSortOrder())
                     .build();
         }).toList();
-    }
-
-    public List<CategoryVO> subcategories(Long categoryId) {
-        return categories().stream()
-                .filter(c -> Objects.equals(c.getParentId(), categoryId))
-                .toList();
     }
 
     private LambdaQueryWrapper<Product> baseOnSale() {
@@ -238,11 +272,16 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                 .id(p.getId())
                 .name(cur != null ? cur.getName() : p.getSpuCode())
                 .nameEn(en != null ? en.getName() : null)
-                .description(cur != null ? cur.getDescription() : null)
-                .summary(cur != null ? cur.getSummary() : null)
-                .features(cur != null ? cur.getFeatures() : null)
+                .description(zh != null ? zh.getDescription() : null)
+                .descriptionEn(en != null ? en.getDescription() : null)
+                .summary(zh != null ? zh.getSummary() : null)
+                .summaryEn(en != null ? en.getSummary() : null)
+                .features(zh != null ? zh.getFeatures() : null)
                 .featuresEn(en != null ? en.getFeatures() : null)
-                .notes(cur != null ? cur.getNotes() : null)
+                .notes(zh != null ? zh.getNotes() : null)
+                .notesEn(en != null ? en.getNotes() : null)
+                .importantLabels(zh != null ? zh.getNotes() : null)
+                .importantLabelsEn(en != null ? en.getNotes() : null)
                 .price(price)
                 .dataLimit(p.getDataLimit())
                 .validityDays(p.getBaseValidityDays())

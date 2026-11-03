@@ -131,7 +131,8 @@ function buildPayload() {
     categoryId: form.parentId || undefined,
     sortOrder: form.sortOrder ?? 0,
     status: form.status ?? 1,
-    showOnFront: form.showOnFront ?? true
+    // 二级分类不进前台顶栏
+    showOnFront: form.parentId ? false : (form.showOnFront ?? true)
   }
 }
 

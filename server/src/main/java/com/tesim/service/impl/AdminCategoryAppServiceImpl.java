@@ -152,7 +152,12 @@ public class AdminCategoryAppServiceImpl implements AdminCategoryAppService {
         c.setIcon(req.getIcon());
         c.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
         c.setStatus(req.getStatus() == null ? 1 : req.getStatus());
-        c.setShowOnFront(req.getShowOnFront() == null || req.getShowOnFront());
+        // 二级分类默认不进前台顶栏；大分类默认展示
+        if (parentId != null && parentId > 0) {
+            c.setShowOnFront(Boolean.TRUE.equals(req.getShowOnFront()));
+        } else {
+            c.setShowOnFront(req.getShowOnFront() == null || req.getShowOnFront());
+        }
         categoryService.save(c);
         upsertI18n(c.getId(), "zh", req.getName(), req.getDescription());
         upsertI18n(c.getId(), "en", req.getNameEn(), null);

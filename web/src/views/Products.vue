@@ -5,7 +5,7 @@
     <!-- 左侧悬浮二级分类：有足够边距时浮在内容左侧，否则改用顶部横排 -->
     <Transition name="subcat-rail">
       <aside
-        v-if="isPhoneCategory && subCategories.length && subcategoryRailMode === 'float'"
+        v-if="hasSubCategoryRail && subcategoryRailMode === 'float'"
         ref="subcategoryRailRef"
         class="subcategory-rail"
         :class="{
@@ -122,8 +122,8 @@
               :alt="getProductName(product)"
               class="card-img" />
             <div v-else class="card-img-placeholder">{{ getProductFlag(product) }}</div>
-            <div v-if="(product as any).isHot || (product as any).isFeatured" class="card-badge">
-              {{ (product as any).isHot ? 'Best Seller' : 'Featured' }}
+            <div v-if="productBadge(product)" class="card-badge">
+              {{ productBadge(product) }}
             </div>
           </div>
           <!-- Body -->
@@ -547,6 +547,8 @@ const selectedCategory = computed(() =>
   frontCategories.value.find(c => c.id === selectedItemType.value)
 )
 const isPhoneCategory = computed(() => selectedCategory.value?.code === 'PHONE')
+/** 有二级分类时一律左侧悬浮，不进顶部 Tab */
+const hasSubCategoryRail = computed(() => subCategories.value.length > 0)
 
 const subCategories = ref<ProductSubcategory[]>([])
 const selectedSubCategoryId = ref(0)
@@ -558,8 +560,14 @@ const subcategoryRailLeft = ref('12px')
 /** 仅当页脚即将盖住侧栏时隐藏；默认显示 */
 const subcategoryRailVisible = ref(true)
 
+function productBadge(product: any): string {
+  if (product?.isHot === true || product?.isHot === 1) return 'Hot'
+  if (product?.isFeatured === true || product?.isFeatured === 1) return 'Featured'
+  return ''
+}
+
 function updateSubcategoryRailPosition() {
-  if (!isPhoneCategory.value || !subCategories.value.length) {
+  if (!hasSubCategoryRail.value) {
     subcategoryRailVisible.value = true
     subcategoryRailMode.value = 'float'
     return
@@ -586,8 +594,10 @@ function updateSubcategoryRailPosition() {
 }
 
 function subCategoryLabel(sub: ProductSubcategory): string {
-  if (locale.value === 'en' && sub.nameEn) return sub.nameEn
-  return sub.name
+  if (locale.value === 'en') {
+    return (sub as any).nameEn || sub.nameEn || sub.name
+  }
+  return (sub as any).nameZh || sub.name
 }
 
 async function loadSubCategories(categoryId: number) {
@@ -608,8 +618,10 @@ function selectSubCategory(id: number) {
 }
 
 function categoryLabel(cat: ProductCategory): string {
-  if (locale.value === 'en' && cat.nameEn) return cat.nameEn
-  return cat.name
+  if (locale.value === 'en') {
+    return cat.nameEn || cat.name
+  }
+  return (cat as any).nameZh || cat.name
 }
 
 // 计算当前显示的产品列表
@@ -873,8 +885,8 @@ function noteToText(raw?: string): string {
   return trimmed
 }
 function getProductNote(product: Product): string {
-  const en = noteToText((product as any).importantLabelsEn)
-  const zh = noteToText((product as any).importantLabels)
+  const en = noteToText((product as any).notesEn || (product as any).importantLabelsEn)
+  const zh = noteToText((product as any).notes || (product as any).importantLabels)
   return locale.value === 'en' && en ? en : zh
 }
 
@@ -1204,7 +1216,7 @@ async function fetchAllProducts() {
   }
   try {
     const itemTypeParam = selectedItemType.value
-    const subParam = isPhoneCategory.value && selectedSubCategoryId.value ? selectedSubCategoryId.value : undefined
+    const subParam = selectedSubCategoryId.value ? selectedSubCategoryId.value : undefined
     let res: any
     if (searchKeyword.value.trim()) {
       res = await productApi.searchProducts(searchKeyword.value.trim(), currentPage.value - 1, pageSize.value, itemTypeParam, subParam)
@@ -1310,15 +1322,18 @@ function handleItemTypeChange(itemType: number) {
   currentPage.value = 1
   total.value = 0
   const cat = frontCategories.value.find(c => c.id === itemType)
-  subCategoryExpanded.value = cat?.code === 'PHONE'
   pageSize.value = cat?.code === 'PHONE' ? 6 : 12
-  if (cat?.code === 'PHONE') {
+  if (isPhoneCategory.value) {
     phoneProducts.value = []
     loadingPhone.value = true
-    loadSubCategories(cat.id)
   } else {
     dataProducts.value = []
     loadingData.value = true
+  }
+  if (cat?.id) {
+    subCategoryExpanded.value = true
+    loadSubCategories(cat.id)
+  } else {
     subCategories.value = []
   }
   fetchAllProducts()
@@ -1361,7 +1376,9 @@ onMounted(async () => {
   }
 
   try {
-    frontCategories.value = await productCategoryApi.listForStorefront()
+    const cats = await productCategoryApi.listForStorefront()
+    // 顶栏只留大分类（无 parentId）；二级分类走侧栏
+    frontCategories.value = (cats || []).filter((c: any) => !c.parentId)
   } catch (e) {
     console.error('加载产品分类失败', e)
   }
@@ -1370,9 +1387,7 @@ onMounted(async () => {
     const preferred = frontCategories.value[0]
     selectedItemType.value = preferred.id
     pageSize.value = preferred.code === 'PHONE' ? 6 : 12
-    if (preferred.code === 'PHONE') {
-      loadSubCategories(preferred.id)
-    }
+    loadSubCategories(preferred.id)
   }
   
   // 先初始化地区列表

@@ -117,6 +117,23 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         Product p = require(id);
         applyProduct(p, req, false);
         productService.updateById(p);
+        // 布尔标记显式落库，避免 updateById 策略漏更
+        if (req.getIsFeatured() != null || req.getIsHot() != null || req.getIsPhysical() != null
+                || req.getIsPhysicalCard() != null) {
+            LambdaUpdateWrapper<Product> uw = new LambdaUpdateWrapper<Product>().eq(Product::getId, id);
+            if (req.getIsFeatured() != null) {
+                uw.set(Product::getIsFeatured, req.getIsFeatured());
+            }
+            if (req.getIsHot() != null) {
+                uw.set(Product::getIsHot, req.getIsHot());
+            }
+            if (req.getIsPhysical() != null) {
+                uw.set(Product::getIsPhysical, req.getIsPhysical());
+            } else if (req.getIsPhysicalCard() != null) {
+                uw.set(Product::getIsPhysical, req.getIsPhysicalCard() == 1);
+            }
+            productService.update(uw);
+        }
         upsertI18n(id, req);
         if (req.getApplicableRegions() != null || req.getCountries() != null) {
             replaceCoverage(id, req);
@@ -124,7 +141,7 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         if (req.getPrice() != null || req.getOriginalPrice() != null || req.getStock() != null) {
             syncDefaultSku(p, req);
         }
-        return toVO(p, true);
+        return toVO(require(id), true);
     }
 
     @Transactional
@@ -515,13 +532,16 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
 
     private void upsertI18n(Long productId, AdminProductRequest req) {
         String nameZh = StringUtils.hasText(req.getName()) ? req.getName() : req.getNameZh();
-        upsertProductI18n(productId, "zh", nameZh, req.getSummaryZh(), req.getDescription(), req.getFeatures());
-        upsertProductI18n(productId, "en", req.getNameEn(), req.getSummaryEn(), req.getDescriptionEn(), req.getFeaturesEn());
+        upsertProductI18n(productId, "zh", nameZh, req.getSummaryZh(), req.getDescription(),
+                req.getFeatures(), req.getNotesZh());
+        upsertProductI18n(productId, "en", req.getNameEn(), req.getSummaryEn(), req.getDescriptionEn(),
+                req.getFeaturesEn(), req.getNotesEn());
     }
 
     private void upsertProductI18n(Long productId, String locale, String name, String summary,
-                                   String description, String features) {
-        if (!StringUtils.hasText(name) && summary == null && description == null && features == null) {
+                                   String description, String features, String notes) {
+        if (!StringUtils.hasText(name) && summary == null && description == null
+                && features == null && notes == null) {
             return;
         }
         I18nProduct existing = i18nProductService.getOne(new LambdaQueryWrapper<I18nProduct>()
@@ -538,23 +558,28 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
             row.setSummary(summary);
             row.setDescription(description);
             row.setFeatures(features);
+            row.setNotes(notes);
             i18nProductService.save(row);
         } else {
+            LambdaUpdateWrapper<I18nProduct> uw = new LambdaUpdateWrapper<I18nProduct>()
+                    .eq(I18nProduct::getProductId, productId)
+                    .eq(I18nProduct::getLocale, locale);
             if (StringUtils.hasText(name)) {
-                existing.setName(name.trim());
+                uw.set(I18nProduct::getName, name.trim());
             }
             if (summary != null) {
-                existing.setSummary(summary);
+                uw.set(I18nProduct::getSummary, summary);
             }
             if (description != null) {
-                existing.setDescription(description);
+                uw.set(I18nProduct::getDescription, description);
             }
             if (features != null) {
-                existing.setFeatures(features);
+                uw.set(I18nProduct::getFeatures, features);
             }
-            i18nProductService.update(existing, new LambdaQueryWrapper<I18nProduct>()
-                    .eq(I18nProduct::getProductId, productId)
-                    .eq(I18nProduct::getLocale, locale));
+            if (notes != null) {
+                uw.set(I18nProduct::getNotes, notes);
+            }
+            i18nProductService.update(uw);
         }
     }
 
@@ -621,6 +646,8 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
                 .summaryEn(en != null ? en.getSummary() : null)
                 .features(zh != null ? zh.getFeatures() : null)
                 .featuresEn(en != null ? en.getFeatures() : null)
+                .notesZh(zh != null ? zh.getNotes() : null)
+                .notesEn(en != null ? en.getNotes() : null)
                 .price(def != null ? def.getSalePrice() : BigDecimal.ZERO)
                 .originalPrice(def != null ? def.getOriginalPrice() : null)
                 .physicalCost(p.getPhysicalCost())

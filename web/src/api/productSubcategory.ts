@@ -6,6 +6,7 @@ export interface ProductSubcategory {
   categoryName?: string
   categoryCode?: string
   name: string
+  nameZh?: string
   nameEn?: string
   code?: string
   sortOrder?: number

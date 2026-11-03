@@ -76,6 +76,7 @@
                 <span class="pd-flag-md">{{ getProductFlag(product) }}</span>
                 <div class="pd-purchase-head-text">
                   <h1 class="pd-product-title">{{ getProductName(product) }}</h1>
+                  <p v-if="getProductSummary(product)" class="pd-product-summary">{{ getProductSummary(product) }}</p>
                   <div class="pd-head-price">
                     <template v-if="productPricingTiers.length === 0 || selectedTier">
                       <span class="pd-head-amount">${{ payablePrice.toFixed(2) }}</span>
@@ -595,8 +596,13 @@ function noteToText(raw?: string): string {
   return trimmed
 }
 function getProductNote(p: Product): string {
-  const en = noteToText((p as any).importantLabelsEn)
-  const zh = noteToText((p as any).importantLabels)
+  const en = noteToText((p as any).notesEn || (p as any).importantLabelsEn)
+  const zh = noteToText((p as any).notes || (p as any).importantLabels)
+  return locale.value === 'en' && en ? en : zh
+}
+function getProductSummary(p: Product): string {
+  const en = String((p as any).summaryEn || '').trim()
+  const zh = String((p as any).summary || (p as any).summaryZh || '').trim()
   return locale.value === 'en' && en ? en : zh
 }
 function getPhoneAllFeatures(p: Product): string[] {
@@ -812,7 +818,8 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
   gap: 24px;
-  align-items: start;
+  /* 左右同高：左侧说明卡背景拉满，与右侧结算底对齐 */
+  align-items: stretch;
 }
 
 .pd-visual {
@@ -821,6 +828,14 @@ onMounted(async () => {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  min-height: 100%;
+  height: 100%;
+}
+.pd-bento-card--specs {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .pd-image-wrap {
   position: relative;
@@ -919,6 +934,12 @@ onMounted(async () => {
   color: var(--text-primary, #1a1b1f);
   margin: 0;
   line-height: 1.3;
+}
+.pd-product-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted, #717785);
 }
 .pd-head-price {
   display: flex;

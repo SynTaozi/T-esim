@@ -17,6 +17,9 @@ public class AdminProductRequest {
     private String summaryEn;
     private String features;
     private String featuresEn;
+    /** 产品说明（i18n notes） */
+    private String notesZh;
+    private String notesEn;
     private BigDecimal price;
     private BigDecimal originalPrice;
     private BigDecimal physicalCost;

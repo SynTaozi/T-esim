@@ -3,8 +3,10 @@ import api from './index'
 export interface ProductCategory {
   id: number
   name: string
+  nameZh?: string
   nameEn?: string
   code?: string
+  parentId?: number | null
   sortOrder?: number
   status?: number
   showOnFront?: boolean

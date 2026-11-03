@@ -13,10 +13,16 @@ public class ProductVO {
     private String name;
     private String nameEn;
     private String description;
+    private String descriptionEn;
     private String summary;
+    private String summaryEn;
     private String features;
     private String featuresEn;
     private String notes;
+    private String notesEn;
+    /** 兼容旧前台字段名（产品说明） */
+    private String importantLabels;
+    private String importantLabelsEn;
     private BigDecimal price;
     private String dataLimit;
     private Integer validityDays;
