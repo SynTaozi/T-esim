@@ -16,7 +16,7 @@ public class StripeConfig {
     @PostConstruct
     public void init() {
         if (stripeProperties.isConfigured()) {
-            String key = stripeProperties.getApiKey().trim();
+            String key = stripeProperties.resolveApiKey();
             Stripe.apiKey = key;
             String masked = key.length() > 12
                     ? key.substring(0, 8) + "..." + key.substring(key.length() - 4)

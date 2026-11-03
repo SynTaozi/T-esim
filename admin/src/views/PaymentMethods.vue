@@ -11,6 +11,13 @@
         <el-table-column label="名称" min-width="140">
           <template #default="{ row }">{{ row.nameZh || row.name || row.code }}</template>
         </el-table-column>
+        <el-table-column label="图标" width="120">
+          <template #default="{ row }">
+            <span class="icon-chip" :class="iconClass(row.icon || row.code)">
+              {{ iconLabel(row.icon || row.code) }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column prop="sortOrder" label="排序" width="80" />
         <el-table-column label="启用" width="100">
           <template #default="{ row }">
@@ -37,11 +44,23 @@
     >
       <el-form :model="form" label-width="90px">
         <el-form-item label="编码" required>
-          <el-input
+          <el-select
             v-model="form.code"
             :disabled="!!form.id"
-            placeholder="如 USDT / STRIPE / WECHAT / ALIPAY / BANK_CARD"
-          />
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入编码"
+            style="width: 100%"
+            @change="onCodeChange"
+          >
+            <el-option
+              v-for="p in codePresets"
+              :key="p.code"
+              :label="`${p.code} · ${p.nameZh}`"
+              :value="p.code"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="中文名" required>
           <el-input v-model="form.nameZh" placeholder="前台展示名称" />
@@ -49,14 +68,19 @@
         <el-form-item label="英文名">
           <el-input v-model="form.nameEn" />
         </el-form-item>
-        <el-form-item label="中文说明">
-          <el-input v-model="form.description" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="英文说明">
-          <el-input v-model="form.descriptionEn" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="图标">
-          <el-input v-model="form.icon" placeholder="图标 URL 或标识" />
+        <el-form-item label="图标" required>
+          <el-select v-model="form.icon" placeholder="选择预制图标" style="width: 100%">
+            <el-option v-for="opt in iconPresets" :key="opt.value" :label="opt.label" :value="opt.value">
+              <div class="icon-option">
+                <span class="icon-chip" :class="opt.css">{{ opt.short }}</span>
+                <span>{{ opt.label }}</span>
+              </div>
+            </el-option>
+          </el-select>
+          <div v-if="form.icon" class="icon-preview">
+            预览：
+            <span class="icon-chip" :class="iconClass(form.icon)">{{ iconLabel(form.icon) }}</span>
+          </div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" />
@@ -79,6 +103,22 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { paymentMethodApi } from '@/api/cms'
 
+const codePresets = [
+  { code: 'WECHAT', nameZh: '微信支付', nameEn: 'WeChat Pay', icon: 'wechat', sortOrder: 10 },
+  { code: 'ALIPAY', nameZh: '支付宝', nameEn: 'Alipay', icon: 'alipay', sortOrder: 20 },
+  { code: 'BANK_CARD', nameZh: '银行卡', nameEn: 'Bank Card', icon: 'bank_card', sortOrder: 30 },
+  { code: 'USDT', nameZh: 'USDT', nameEn: 'USDT', icon: 'usdt', sortOrder: 40 }
+]
+
+const iconPresets = [
+  { value: 'wechat', label: '微信', short: '微', css: 'icon-wechat' },
+  { value: 'alipay', label: '支付宝', short: '支', css: 'icon-alipay' },
+  { value: 'bank_card', label: '银行卡', short: '卡', css: 'icon-card' },
+  { value: 'usdt', label: 'USDT', short: 'U', css: 'icon-usdt' },
+  { value: 'balance', label: '余额', short: '余', css: 'icon-balance' },
+  { value: 'default', label: '默认', short: '付', css: 'icon-default' }
+]
+
 const loading = ref(false)
 const saving = ref(false)
 const togglingId = ref<number | null>(null)
@@ -92,9 +132,7 @@ function emptyForm() {
     code: '',
     nameZh: '',
     nameEn: '',
-    description: '',
-    descriptionEn: '',
-    icon: '',
+    icon: 'default',
     sortOrder: 0,
     enabled: true
   }
@@ -102,6 +140,38 @@ function emptyForm() {
 
 function resetForm(data?: Partial<ReturnType<typeof emptyForm>>) {
   Object.assign(form, emptyForm(), data || {})
+}
+
+function normalizeIconKey(raw: string): string {
+  const v = (raw || '').trim().toLowerCase()
+  if (!v) return 'default'
+  if (v.includes('wechat') || v === 'wx') return 'wechat'
+  if (v.includes('alipay') || v === 'ali') return 'alipay'
+  if (v.includes('usdt') || v.includes('tether')) return 'usdt'
+  if (v.includes('bank') || v.includes('card')) return 'bank_card'
+  if (v.includes('balance') || v.includes('wallet')) return 'balance'
+  if (['wechat', 'alipay', 'usdt', 'bank_card', 'balance', 'default'].includes(v)) return v
+  return 'default'
+}
+
+function iconClass(raw: string) {
+  const key = normalizeIconKey(raw)
+  return iconPresets.find((i) => i.value === key)?.css || 'icon-default'
+}
+
+function iconLabel(raw: string) {
+  const key = normalizeIconKey(raw)
+  return iconPresets.find((i) => i.value === key)?.short || '付'
+}
+
+function onCodeChange(code: string) {
+  if (form.id) return
+  const preset = codePresets.find((p) => p.code === code)
+  if (!preset) return
+  if (!form.nameZh) form.nameZh = preset.nameZh
+  if (!form.nameEn) form.nameEn = preset.nameEn
+  form.icon = preset.icon
+  if (!form.sortOrder) form.sortOrder = preset.sortOrder
 }
 
 async function load() {
@@ -125,9 +195,7 @@ function openEdit(row: any) {
     code: row.code || '',
     nameZh: row.nameZh || row.name || '',
     nameEn: row.nameEn || '',
-    description: row.description || '',
-    descriptionEn: row.descriptionEn || '',
-    icon: row.icon || '',
+    icon: normalizeIconKey(row.icon || row.code),
     sortOrder: row.sortOrder ?? 0,
     enabled: !!row.enabled
   })
@@ -149,7 +217,7 @@ async function toggleEnabled(row: any, enabled: boolean) {
 }
 
 async function saveForm() {
-  const code = (form.code || '').trim()
+  const code = (form.code || '').trim().toUpperCase()
   const nameZh = (form.nameZh || '').trim()
   if (!code) {
     ElMessage.warning('请填写编码')
@@ -159,15 +227,17 @@ async function saveForm() {
     ElMessage.warning('请填写中文名')
     return
   }
+  if (!form.icon) {
+    ElMessage.warning('请选择图标')
+    return
+  }
   const payload = {
     id: form.id,
     code,
     name: nameZh,
     nameZh,
     nameEn: (form.nameEn || '').trim() || undefined,
-    description: form.description || undefined,
-    descriptionEn: form.descriptionEn || undefined,
-    icon: form.icon || undefined,
+    icon: form.icon,
     sortOrder: form.sortOrder ?? 0,
     enabled: !!form.enabled
   }
@@ -205,3 +275,37 @@ async function remove(row: any) {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.icon-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.icon-preview {
+  margin-top: 8px;
+  color: #666;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.icon-wechat { background: #07c160; }
+.icon-alipay { background: #1677ff; }
+.icon-usdt { background: #26a17b; }
+.icon-card { background: #1e3a5f; }
+.icon-balance { background: #0059b5; }
+.icon-default { background: #9e9e9e; }
+</style>

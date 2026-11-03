@@ -338,7 +338,7 @@ public class StripePaymentService {
             throw new BizException("Stripe 未配置，请设置 tesim.payment.stripe.api-key");
         }
         if (!StringUtils.hasText(com.stripe.Stripe.apiKey)) {
-            com.stripe.Stripe.apiKey = stripeProperties.getApiKey().trim();
+            com.stripe.Stripe.apiKey = stripeProperties.resolveApiKey();
         }
     }
 
