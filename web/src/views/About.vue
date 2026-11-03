@@ -2,140 +2,113 @@
   <div class="about-page">
     <SiteHeader />
 
-    <!-- Hero -->
-    <div class="page-hero">
-      <div class="hero-bg"></div>
-      <div class="container hero-content">
+    <section class="hero">
+      <div class="container center">
         <div class="breadcrumb">
           <router-link to="/">{{ $t('orderDetail.home') }}</router-link>
           <span class="sep">›</span>
           <span>{{ $t('nav.about') }}</span>
         </div>
+        <p class="brand">Tesim</p>
         <h1>{{ $t('about.subtitle') }}</h1>
-        <p class="hero-subtitle">{{ $t('about.platformTitle') }}</p>
-        <p class="hero-intro">{{ $t('about.intro') }}</p>
+        <p class="platform">{{ $t('about.platformTitle') }}</p>
+        <p class="intro">{{ $t('about.intro') }}</p>
       </div>
-    </div>
+    </section>
 
-    <div class="container main-content">
-
-      <!-- Stats -->
-      <section class="stats-section">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-num">120+</div>
-            <div class="stat-label">{{ $t('about.countriesServed') }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-num">{{ $t('about.hours247') }}</div>
-            <div class="stat-label">{{ $t('about.globalAccess') }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-num">Global</div>
-            <div class="stat-label">{{ $t('about.globalCoverage') }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-num">United States</div>
-            <div class="stat-label">{{ $t('about.wyomingReg') }}</div>
-          </div>
+    <section class="stats">
+      <div class="container stats-row">
+        <div>
+          <strong>200+</strong>
+          <span>{{ $t('about.countriesServed') }}</span>
         </div>
-      </section>
-
-      <!-- Who We Are -->
-      <section class="section">
-        <div class="section-header">
-          <h2>{{ $t('about.whoWeAre') }}</h2>
-          <p class="section-subtitle">{{ $t('about.whoWeAreSubtitle') }}</p>
+        <div>
+          <strong>{{ $t('about.hours247') }}</strong>
+          <span>{{ $t('about.globalAccess') }}</span>
         </div>
-        <div class="who-we-are-content">
-          <div class="text-content">
-            <p>{{ $t('about.whoWeAreContent1') }}</p>
-            <p>{{ $t('about.whoWeAreContent2') }}</p>
-            <p>{{ $t('about.whoWeAreContent3') }}</p>
-          </div>
-          <div class="cta-box">
-            <h3>{{ $t('about.ourServices') }}</h3>
-            <router-link to="/contact" class="btn-cta">{{ $t('about.contactUs') }}</router-link>
-          </div>
+        <div>
+          <strong>Global</strong>
+          <span>{{ $t('about.globalCoverage') }}</span>
         </div>
-      </section>
+        <div>
+          <strong>US</strong>
+          <span>{{ $t('about.wyomingReg') }}</span>
+        </div>
+      </div>
+    </section>
 
-      <!-- Business Scope -->
-      <section class="section">
-        <div class="section-header">
+    <section class="block">
+      <div class="container center-copy">
+        <h2>{{ $t('about.whoWeAre') }}</h2>
+        <p class="sub">{{ $t('about.whoWeAreSubtitle') }}</p>
+        <p>{{ $t('about.whoWeAreContent1') }}</p>
+        <p>{{ $t('about.whoWeAreContent2') }}</p>
+        <p>{{ $t('about.whoWeAreContent3') }}</p>
+        <router-link to="/contact" class="text-link">{{ $t('about.contactUs') }} →</router-link>
+      </div>
+    </section>
+
+    <section class="block soft">
+      <div class="container">
+        <div class="center">
           <h2>{{ $t('about.businessScope') }}</h2>
-          <p class="section-subtitle">{{ $t('about.ourServiceDomains') }}</p>
+          <p class="sub">{{ $t('about.ourServiceDomains') }}</p>
         </div>
-        <div class="services-grid">
-          <div class="service-card">
-            <div class="service-icon">🏗️</div>
-            <h3>{{ $t('about.service1Title') }}</h3>
-            <p>{{ $t('about.service1Desc') }}</p>
-          </div>
-          <div class="service-card">
-            <div class="service-icon">☁️</div>
-            <h3>{{ $t('about.service2Title') }}</h3>
-            <p>{{ $t('about.service2Desc') }}</p>
-          </div>
-          <div class="service-card">
-            <div class="service-icon">📡</div>
-            <h3>{{ $t('about.service3Title') }}</h3>
-            <p>{{ $t('about.service3Desc') }}</p>
-          </div>
-          <div class="service-card">
-            <div class="service-icon">✈️</div>
-            <h3>{{ $t('about.service4Title') }}</h3>
-            <p>{{ $t('about.service4Desc') }}</p>
-          </div>
+        <div class="services">
+          <article v-for="s in services" :key="s.title">
+            <h3>{{ $t(s.title) }}</h3>
+            <p>{{ $t(s.desc) }}</p>
+          </article>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Legal Entity -->
-      <section class="section">
-        <div class="section-header">
+    <section class="block">
+      <div class="container">
+        <div class="center">
           <h2>{{ $t('about.legalEntity') }}</h2>
-          <p class="section-subtitle">{{ $t('about.companyDetails') }}</p>
+          <p class="sub">{{ $t('about.companyDetails') }}</p>
         </div>
-        <div class="legal-card">
-          <div class="legal-grid">
-            <div class="legal-item">
-              <span class="label">{{ $t('about.legalName') }}</span>
-              <span class="value">{{ $t('about.legalNameValue') }}</span>
-            </div>
-            <div class="legal-item">
-              <span class="label">{{ $t('about.stateOfIncorporation') }}</span>
-              <span class="value">{{ $t('about.stateValue') }}</span>
-            </div>
-            <div class="legal-item">
-              <span class="label">{{ $t('about.phone') }}</span>
-              <span class="value"><a href="tel:+12133438884">+1 213-343-8884</a></span>
-            </div>
-            <div class="legal-item">
-              <span class="label">{{ $t('about.email') }}</span>
-              <span class="value">
-                <a href="mailto:support@tesim.com">support@tesim.com</a><br>
-                <a href="mailto:service@tesim.com">service@tesim.com</a>
-              </span>
-            </div>
-            <div class="legal-item full-width">
-              <span class="label">{{ $t('about.registeredAddress') }}</span>
-              <span class="value">{{ $t('about.addressValue') }}</span>
-            </div>
+        <div class="legal-strip">
+          <div>
+            <span>{{ $t('about.legalName') }}</span>
+            <strong>{{ $t('about.legalNameValue') }}</strong>
+          </div>
+          <div>
+            <span>{{ $t('about.stateOfIncorporation') }}</span>
+            <strong>{{ $t('about.stateValue') }}</strong>
+          </div>
+          <div>
+            <span>{{ $t('about.phone') }}</span>
+            <strong><a href="tel:+12133438884">+1 213-343-8884</a></strong>
+          </div>
+          <div>
+            <span>{{ $t('about.email') }}</span>
+            <strong><a href="mailto:support@tesim.com">support@tesim.com</a></strong>
+          </div>
+          <div class="wide">
+            <span>{{ $t('about.registeredAddress') }}</span>
+            <strong>{{ $t('about.addressValue') }}</strong>
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
 
-         <SiteFooter />
+    <SiteFooter />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
-const { t } = useI18n({ useScope: 'global' })
+
+const services = [
+  { title: 'about.service1Title', desc: 'about.service1Desc' },
+  { title: 'about.service2Title', desc: 'about.service2Desc' },
+  { title: 'about.service3Title', desc: 'about.service3Desc' },
+  { title: 'about.service4Title', desc: 'about.service4Desc' }
+]
 
 onMounted(() => {
   window.scrollTo(0, 0)
@@ -145,283 +118,208 @@ onMounted(() => {
 <style scoped>
 .about-page {
   min-height: 100vh;
+  background: #fff;
+  font-family: var(--font-body, Manrope, system-ui, sans-serif);
+  color: #1a1b1f;
 }
 
-/* Hero */
-.page-hero {
-  position: relative;
-  background: transparent;
-  padding: 40px 0 60px;
-  overflow: hidden;
-  border-bottom: none;
+.center {
+  text-align: center;
 }
 
-.hero-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background:
-    radial-gradient(ellipse at 30% 50%, var(--accent-muted) 0%, transparent 60%),
-    radial-gradient(ellipse at 70% 50%, var(--accent-muted) 0%, transparent 60%);
-  pointer-events: none;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
+.hero {
+  padding: 56px 0 36px;
 }
 
 .breadcrumb {
-  display: flex;
-  align-items: center;
+  display: inline-flex;
   gap: 8px;
+  align-items: center;
+  color: #86868b;
   font-size: 14px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .breadcrumb a {
-  color: var(--accent-primary);
+  color: #0059b5;
   text-decoration: none;
 }
 
 .sep {
-  color: var(--text-muted);
+  color: #86868b;
 }
 
-.page-hero h1 {
-  font-size: clamp(28px, 5vw, 44px);
-  font-weight: 700;
-  color: var(--text-primary);
+.brand {
   margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #0059b5;
 }
 
-.hero-subtitle {
+h1 {
+  margin: 0 auto;
+  max-width: 16ch;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.platform {
+  margin: 12px 0 0;
+  color: #0059b5;
+  font-weight: 700;
   font-size: 18px;
-  color: var(--accent-primary);
-  font-weight: 600;
-  margin: 0 0 16px;
 }
 
-.hero-intro {
-  font-size: 16px;
-  color: var(--text-secondary);
-  max-width: 680px;
+.intro {
+  margin: 16px auto 0;
+  max-width: 40em;
+  color: #414753;
   line-height: 1.7;
-  margin: 0;
+  font-size: 16px;
 }
 
-/* Stats */
-.stats-section {
-  padding: 40px 0;
+.stats {
+  border-top: 1px solid #eef0f4;
+  border-bottom: 1px solid #eef0f4;
+  background: #f8fafc;
 }
 
-.stats-grid {
+.stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  padding: 28px 20px;
+  gap: 12px;
+  padding: 28px 0;
   text-align: center;
 }
 
-.stat-num {
+.stats-row strong {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  color: #0059b5;
+  margin-bottom: 6px;
+}
+
+.stats-row span {
+  font-size: 13px;
+  color: #86868b;
+}
+
+.block {
+  padding: 56px 0;
+}
+
+.block.soft {
+  background: #f5f7fb;
+}
+
+.center-copy {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h2 {
+  margin: 0 0 8px;
   font-size: 28px;
   font-weight: 800;
-  color: var(--accent-primary);
-  margin-bottom: 8px;
+  letter-spacing: -0.02em;
 }
 
-.stat-label {
-  font-size: 14px;
-  color: var(--text-muted);
+.sub {
+  margin: 0 0 18px;
+  color: #86868b;
 }
 
-/* Sections */
-.main-content {
-  padding: 0 20px 60px;
-}
-
-.section {
-  margin-bottom: 60px;
-}
-
-.section-header {
-  margin-bottom: 32px;
-}
-
-.section-header h2 {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 8px;
-}
-
-.section-subtitle {
-  font-size: 15px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-/* Who We Are */
-.who-we-are-content {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 32px;
-  align-items: start;
-}
-
-.text-content p {
-  color: var(--text-secondary);
-  line-height: 1.7;
-  margin: 0 0 16px;
+.center-copy p {
+  margin: 0 0 14px;
+  color: #414753;
+  line-height: 1.75;
   font-size: 15px;
 }
 
-.cta-box {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-}
-
-.cta-box h3 {
-  font-size: 16px;
-  color: var(--text-primary);
-  margin: 0 0 16px;
-}
-
-.btn-cta {
+.text-link {
   display: inline-block;
-  background: var(--accent-primary);
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 10px 20px;
-  border-radius: 8px;
+  margin-top: 8px;
+  color: #0059b5;
+  font-weight: 700;
   text-decoration: none;
-  transition: all 0.2s;
 }
 
-.btn-cta:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-}
-
-/* Services Grid */
-.services-grid {
+.services {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px 28px;
+  margin-top: 28px;
 }
 
-.service-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  padding: 24px;
-  transition: border-color 0.2s;
+.services article {
+  padding-top: 18px;
+  border-top: 2px solid #0059b5;
 }
 
-.service-card:hover {
-  border-color: var(--accent-primary);
-}
-
-.service-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-}
-
-.service-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
+.services h3 {
   margin: 0 0 8px;
+  font-size: 17px;
 }
 
-.service-card p {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.services p {
   margin: 0;
+  color: #414753;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-/* Legal */
-.legal-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: 12px;
-  padding: 32px;
-}
-
-.legal-grid {
+.legal-strip {
+  margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 
-.legal-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.legal-strip > div {
+  background: #fff;
+  border: 1px solid #e8ebf0;
+  border-radius: 14px;
+  padding: 16px 18px;
 }
 
-.legal-item.full-width {
-  grid-column: 1 / -1;
-}
-
-.legal-item .label {
+.legal-strip span {
+  display: block;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
+  color: #86868b;
+  margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.legal-item .value {
-  font-size: 15px;
-  color: var(--text-primary);
-  line-height: 1.6;
+.legal-strip strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
-.legal-item .value a {
-  color: var(--accent-primary);
+.legal-strip a {
+  color: #0059b5;
   text-decoration: none;
 }
 
-.legal-item .value a:hover {
-  text-decoration: underline;
+.legal-strip .wide {
+  grid-column: 1 / -1;
 }
 
-@media (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+@media (max-width: 800px) {
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .who-we-are-content {
+  .services,
+  .legal-strip {
     grid-template-columns: 1fr;
-  }
-
-  .services-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .legal-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 600px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
