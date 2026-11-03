@@ -34,8 +34,7 @@
               <span>业务管理</span>
             </template>
             <el-menu-item index="/products">产品管理</el-menu-item>
-            <el-menu-item index="/product-categories">产品大分类</el-menu-item>
-            <el-menu-item index="/product-subcategories">产品二级分类</el-menu-item>
+            <el-menu-item index="/product-categories">产品分类</el-menu-item>
             <el-menu-item index="/orders">订单管理</el-menu-item>
             <el-menu-item index="/tickets">工单管理</el-menu-item>
           </el-sub-menu>
@@ -124,8 +123,8 @@ const pageTitleMap: Record<string, string> = {
   '/products': '产品管理',
   '/products/create': '添加产品',
   '/products/plan-sync': '套餐同步',
-  '/product-categories': '产品大分类',
-  '/product-subcategories': '产品二级分类',
+  '/product-categories': '产品分类',
+  '/product-subcategories': '产品分类',
   '/orders': '订单管理',
   '/tickets': '工单管理',
   '/payment-methods': '支付方式',

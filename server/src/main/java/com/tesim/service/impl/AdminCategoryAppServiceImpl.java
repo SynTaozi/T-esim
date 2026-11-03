@@ -143,7 +143,12 @@ public class AdminCategoryAppServiceImpl implements AdminCategoryAppService {
         }
         ProductCategory c = new ProductCategory();
         c.setParentId(parentId);
-        c.setCode(StringUtils.hasText(req.getCode()) ? req.getCode().trim() : ("CAT" + System.currentTimeMillis()));
+        if (StringUtils.hasText(req.getCode())) {
+            c.setCode(req.getCode().trim());
+        } else {
+            String prefix = parentId != null && parentId > 0 ? "SUB" : "CAT";
+            c.setCode(prefix + System.currentTimeMillis());
+        }
         c.setIcon(req.getIcon());
         c.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
         c.setStatus(req.getStatus() == null ? 1 : req.getStatus());

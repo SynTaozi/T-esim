@@ -11,8 +11,8 @@
       <el-form :model="form" label-width="110px">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="SPU 编码" required>
-              <el-input v-model="form.spuCode" />
+            <el-form-item label="SPU 编码">
+              <el-input v-model="form.spuCode" placeholder="留空自动生成" :disabled="isEdit" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -36,16 +36,22 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="大分类">
-              <el-select v-model="rootId" style="width: 100%" @change="loadChildren">
-                <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
-              </el-select>
+              <div class="select-with-action">
+                <el-select v-model="rootId" style="flex: 1" clearable @change="onRootChange">
+                  <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
+                </el-select>
+                <el-button @click="openCatDialog('root')">+</el-button>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="二级分类" required>
-              <el-select v-model="form.categoryId" style="width: 100%">
-                <el-option v-for="c in children" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
-              </el-select>
+              <div class="select-with-action">
+                <el-select v-model="form.categoryId" style="flex: 1" clearable>
+                  <el-option v-for="c in children" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
+                </el-select>
+                <el-button @click="openCatDialog('child')">+</el-button>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -124,6 +130,34 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <el-dialog
+      v-model="catVisible"
+      :title="catMode === 'root' ? '快速新建大分类' : '快速新建二级分类'"
+      width="480px"
+      destroy-on-close
+    >
+      <el-form :model="catForm" label-width="90px">
+        <el-form-item v-if="catMode === 'child'" label="所属大类">
+          <el-select v-model="catForm.parentId" style="width: 100%">
+            <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="编码">
+          <el-input v-model="catForm.code" placeholder="留空自动生成" />
+        </el-form-item>
+        <el-form-item label="中文名" required>
+          <el-input v-model="catForm.nameZh" />
+        </el-form-item>
+        <el-form-item label="英文名">
+          <el-input v-model="catForm.nameEn" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="catVisible = false">取消</el-button>
+        <el-button type="primary" :loading="catSaving" @click="saveCategory">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -162,12 +196,35 @@ const form = reactive<any>({
   skus: [] as any[]
 })
 
+const catVisible = ref(false)
+const catSaving = ref(false)
+const catMode = ref<'root' | 'child'>('root')
+const catForm = reactive({
+  parentId: undefined as number | undefined,
+  code: '',
+  nameZh: '',
+  nameEn: ''
+})
+
 function addSku() {
-  form.skus.push({ labelZh: '', months: 1, durationDays: 30, salePrice: 0, isDefault: form.skus.length === 0, status: 1, sortOrder: form.skus.length })
+  form.skus.push({
+    labelZh: '',
+    months: 1,
+    durationDays: 30,
+    salePrice: 0,
+    isDefault: form.skus.length === 0,
+    status: 1,
+    sortOrder: form.skus.length
+  })
 }
 
-async function loadChildren() {
-  form.categoryId = undefined
+async function loadRoots() {
+  const res = await categoryApi.listRoots()
+  roots.value = res.data || []
+}
+
+async function loadChildren(keepSelection = false) {
+  if (!keepSelection) form.categoryId = undefined
   if (!rootId.value) {
     children.value = []
     return
@@ -176,13 +233,89 @@ async function loadChildren() {
   children.value = res.data || []
 }
 
+function onRootChange() {
+  loadChildren(false)
+}
+
+function openCatDialog(mode: 'root' | 'child') {
+  if (mode === 'child' && !rootId.value) {
+    ElMessage.warning('请先选择或新建大分类')
+    return
+  }
+  catMode.value = mode
+  catForm.parentId = mode === 'child' ? rootId.value : undefined
+  catForm.code = ''
+  catForm.nameZh = ''
+  catForm.nameEn = ''
+  catVisible.value = true
+}
+
+async function saveCategory() {
+  const nameZh = (catForm.nameZh || '').trim()
+  if (!nameZh) {
+    ElMessage.warning('请填写中文名')
+    return
+  }
+  const code = (catForm.code || '').trim()
+  const payload = {
+    nameZh,
+    name: nameZh,
+    nameEn: (catForm.nameEn || '').trim() || undefined,
+    code: code || undefined,
+    parentId: catForm.parentId,
+    categoryId: catForm.parentId,
+    sortOrder: 0,
+    status: 1,
+    showOnFront: true
+  }
+  catSaving.value = true
+  try {
+    if (catMode.value === 'root') {
+      const res = await categoryApi.createRoot(payload)
+      await loadRoots()
+      rootId.value = res.data?.id
+      await loadChildren(false)
+    } else {
+      if (!catForm.parentId) {
+        ElMessage.warning('请选择所属大类')
+        return
+      }
+      const res = await categoryApi.createChild(payload)
+      rootId.value = catForm.parentId
+      await loadChildren(true)
+      form.categoryId = res.data?.id
+    }
+    ElMessage.success('分类已创建')
+    catVisible.value = false
+  } finally {
+    catSaving.value = false
+  }
+}
+
 async function save() {
+  if (!(form.nameZh || '').trim()) {
+    ElMessage.warning('请填写中文名')
+    return
+  }
+  if (!form.categoryId) {
+    ElMessage.warning('请选择二级分类')
+    return
+  }
   saving.value = true
   try {
+    const statusMap: Record<string, number> = { ON_SALE: 1, DRAFT: 0, OFF_SALE: 0 }
+    const payload = {
+      ...form,
+      name: (form.nameZh || '').trim(),
+      spuCode: (form.spuCode || '').trim() || undefined,
+      categoryId: form.categoryId,
+      subCategoryId: form.categoryId,
+      status: statusMap[form.status] ?? 0
+    }
     if (isEdit.value) {
-      await productApi.update(Number(route.params.id), form)
+      await productApi.update(Number(route.params.id), payload)
     } else {
-      await productApi.create(form)
+      await productApi.create(payload)
     }
     ElMessage.success('已保存')
     router.push('/products')
@@ -192,8 +325,7 @@ async function save() {
 }
 
 onMounted(async () => {
-  const rootRes = await categoryApi.listRoots()
-  roots.value = rootRes.data || []
+  await loadRoots()
   if (!isEdit.value) {
     addSku()
     return
@@ -203,11 +335,23 @@ onMounted(async () => {
     const res = await productApi.get(Number(route.params.id))
     Object.assign(form, res.data || {})
     if (!form.skus) form.skus = []
-    rootId.value = res.data?.parentCategoryId || undefined
-    if (rootId.value) {
-      const childRes = await categoryApi.listChildren(rootId.value)
-      children.value = childRes.data || []
+    // 后端 VO 的 categoryId 即二级分类；需反查所属大类
+    const subId = res.data?.subCategoryId || res.data?.categoryId
+    form.categoryId = subId
+    if (subId) {
+      for (const r of roots.value) {
+        const childRes = await categoryApi.listChildren(r.id)
+        const list = childRes.data || []
+        if (list.some((c: any) => c.id === subId)) {
+          rootId.value = r.id
+          children.value = list
+          break
+        }
+      }
     }
+    // VO 用 1/0，表单用字符串
+    if (res.data?.status === 1) form.status = 'ON_SALE'
+    else if (res.data?.status === 0) form.status = 'OFF_SALE'
   } finally {
     loading.value = false
   }
@@ -224,5 +368,11 @@ onMounted(async () => {
 .sku-head h3 {
   margin: 0;
   font-size: 15px;
+}
+.select-with-action {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
 }
 </style>
