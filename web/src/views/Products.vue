@@ -197,7 +197,7 @@
       width="min(1000px, calc(100vw - 24px))"
       class="order-dialog"
       :show-close="true">
-      <div v-if="selectedProduct" class="order-content" style="max-height: 65vh; overflow-y: auto;">
+      <div v-if="selectedProduct" class="order-content" style="max-height: 85vh; overflow-y: auto;">
         <!-- Product Info -->
         <div class="order-product">
           <div class="product-header">
@@ -257,36 +257,65 @@
           </div>
         </div>
 
-        <!-- Device Selection -->
+        <!-- Delivery: eSIM vs physical -->
         <div class="order-section">
           <div class="section-title">
-            {{ (selectedProduct as any)?.isPhysicalCard ? '选择实体设备' : $t('phoneNumbers.devices') }}
-            <span :class="(selectedProduct as any)?.isPhysicalCard ? 'section-required' : 'section-hint'">
-              {{ (selectedProduct as any)?.isPhysicalCard ? '* 实体卡必选' : $t('checkout.oneShipping') }}
-            </span>
+            {{ $t('plans.deliveryTitle') }}
+            <span class="section-required">*</span>
           </div>
-          <div class="device-options">
+          <div class="delivery-options">
             <label
-              v-for="device in devices"
-              :key="device.id"
-              class="device-option"
-              :class="{ selected: selectedDevices.includes(device.id) }">
-              <input type="checkbox" :value="device.id" v-model="selectedDevices" />
-              <div class="device-content">
-                <div class="device-info">
-                  <span class="device-name">{{ locale === 'zh' ? device.name : device.nameEn }}</span>
-                  <span class="device-desc">{{ locale === 'zh' ? device.description : device.descriptionEn }}</span>
-                </div>
-                <span class="device-price">{{ device.isFree ? $t('phoneNumbers.free') : '$' + device.price.toFixed(2) }}</span>
+              v-if="!isPhysicalProduct"
+              class="delivery-option"
+              :class="{ selected: deliveryMode === 'esim' }"
+            >
+              <input type="radio" value="esim" v-model="deliveryMode" />
+              <div class="delivery-body">
+                <span class="delivery-name">{{ $t('plans.deliveryEsim') }}</span>
+                <span class="delivery-desc">{{ $t('plans.deliveryEsimDesc') }}</span>
+              </div>
+            </label>
+            <label
+              class="delivery-option"
+              :class="{ selected: deliveryMode === 'physical' }"
+            >
+              <input type="radio" value="physical" v-model="deliveryMode" />
+              <div class="delivery-body">
+                <span class="delivery-name">{{ $t('plans.deliveryPhysical') }}</span>
+                <span class="delivery-desc">{{ $t('plans.deliveryPhysicalDesc') }}</span>
               </div>
             </label>
           </div>
-          <div class="shipping-note">
-            <svg class="shipping-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-            {{ $t('checkout.shippingNote') }} <strong>{{ siteConfig.formatShippingFee() }}</strong>
-          </div>
+
+          <template v-if="deliveryMode === 'physical'">
+            <div class="section-title" style="margin-top: 14px;">
+              {{ $t('plans.pickDevice') }}
+              <span class="section-required">*</span>
+            </div>
+            <div class="device-options">
+              <label
+                v-for="device in devices"
+                :key="device.id"
+                class="device-option"
+                :class="{ selected: selectedDevices.includes(device.id) }"
+              >
+                <input type="checkbox" :value="device.id" v-model="selectedDevices" />
+                <div class="device-content">
+                  <div class="device-info">
+                    <span class="device-name">{{ locale === 'zh' ? device.name : device.nameEn }}</span>
+                    <span class="device-desc">{{ locale === 'zh' ? device.description : device.descriptionEn }}</span>
+                  </div>
+                  <span class="device-price">{{ device.isFree ? $t('phoneNumbers.free') : '$' + device.price.toFixed(2) }}</span>
+                </div>
+              </label>
+            </div>
+            <div class="shipping-note" v-if="hasDevice">
+              <svg class="shipping-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+              {{ $t('checkout.shippingNote') }} <strong>{{ siteConfig.formatShippingFee() }}</strong>
+            </div>
+          </template>
         </div>
 
         <!-- Pricing Tiers -->
@@ -640,6 +669,7 @@ const selectedProduct = ref<Product | null>(null)
 // 订单表单
 const esimOption = ref('esim')
 const selectedDevices = ref<number[]>([])  // 选中的设备 ID 列表
+const deliveryMode = ref<'esim' | 'physical'>('esim')
 const paymentMethod = ref('usdt')
 const userBalance = ref(0) // 用户余额
 const enabledPaymentMethods = ref<any[]>([]) // 开启的支付方式（完整对象）
@@ -673,7 +703,17 @@ const deviceTotal = computed(() => {
   }, 0)
 })
 
-const hasDevice = computed(() => selectedDevices.value.length > 0)
+const isPhysicalProduct = computed(() => !!(selectedProduct.value as any)?.isPhysicalCard)
+const hasDevice = computed(() => deliveryMode.value === 'physical' && selectedDevices.value.length > 0)
+
+watch(deliveryMode, (mode) => {
+  if (mode === 'esim') selectedDevices.value = []
+})
+
+watch(isPhysicalProduct, (v) => {
+  if (v) deliveryMode.value = 'physical'
+  else if (!selectedProduct.value) deliveryMode.value = 'esim'
+})
 
 // 运费：选购任意数量设备，整单只收一次
 const shippingFeeAmount = computed(() => {
@@ -1013,6 +1053,7 @@ async function openDetail(product: Product) {
   selectedProduct.value = product
   // 重置表单
   esimOption.value = 'esim'
+  deliveryMode.value = (product as any)?.isPhysicalCard ? 'physical' : 'esim'
   selectedDevices.value = []
   paymentMethod.value = 'usdt'
   selectedTier.value = null
@@ -1059,10 +1100,8 @@ async function handleBuyNow() {
     return
   }
   
-  // 实体卡必须选择设备
-  const isPhysical = !!(selectedProduct.value as any)?.isPhysicalCard
-  if (isPhysical && selectedDevices.value.length === 0) {
-    ElMessage.warning('该产品为实体卡，请选择至少一个配套设备')
+  if (deliveryMode.value === 'physical' && selectedDevices.value.length === 0) {
+    ElMessage.warning(t('plans.physicalRequiresDevice') || '请选择至少一个配套设备')
     return
   }
   
@@ -2149,6 +2188,24 @@ a.product-card {
 .radio-title { display: block; font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
 .radio-desc { display: block; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 
+.delivery-options { display: flex; flex-direction: column; gap: 8px; }
+.delivery-option {
+  cursor: pointer;
+  display: block;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  transition: border-color 0.15s, background 0.15s;
+}
+.delivery-option input { display: none; }
+.delivery-option.selected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+.delivery-body { display: flex; flex-direction: column; gap: 2px; }
+.delivery-name { font-size: 14px; font-weight: 650; color: var(--text-primary); }
+.delivery-desc { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
 .device-options { display: flex; flex-direction: column; gap: 6px; }
 .device-option {
   display: flex; align-items: stretch; padding: 10px 12px;
