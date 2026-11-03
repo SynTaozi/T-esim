@@ -1,31 +1,33 @@
-spring:
-  datasource:
-    url: ${TESIM_DB_URL:jdbc:mysql://127.0.0.1:3306/tesim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true}
-    username: tesim
-    password: 'R6ta8t2yksDwSp3a'
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  data:
-    redis:
-      host: 127.0.0.1
-      port: 9876
-      database: 0
-      password: '@Syntest111'
-
-tesim:
-  payment:
-    usdt:
-      address: ${TESIM_USDT_ADDRESS:TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv}
-      rate: 1
-    stripe:
-      # 上线前联调默认 Stripe test 沙箱（api-key-b64 在 application.yml）
-      # 正式收款：设置 TESIM_STRIPE_API_KEY=sk_live_... 并配置 Webhook -> /api/payment/stripe/webhook
-      api-key: ${TESIM_STRIPE_API_KEY:}
-      webhook-secret: ${TESIM_STRIPE_WEBHOOK_SECRET:whsec_07f9c577a5f1b8c46f8b50337609fa805afb62ca27df4ed87b436e69ad66d148}
-      success-url: ${TESIM_STRIPE_SUCCESS_URL:https://www.tesim.com/checkout/stripe/success}
-      cancel-url: ${TESIM_STRIPE_CANCEL_URL:https://www.tesim.com/checkout/stripe/cancel}
-      currency: usd
-
-logging:
-  level:
-    root: warn
-    com.tesim: info
+spring:
+  datasource:
+    url: ${TESIM_DB_URL:jdbc:mysql://127.0.0.1:3306/tesim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true}
+    username: tesim
+    password: 'R6ta8t2yksDwSp3a'
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 9876
+      database: 0
+      password: '@Syntest111'
+
+tesim:
+  # 当前联调机：前台 :8322，后端 API :8088/api（可用环境变量覆盖）
+  site:
+    public-web-base: ${TESIM_PUBLIC_WEB_BASE:http://158.247.212.117:8322}
+    public-api-base: ${TESIM_PUBLIC_API_BASE:http://158.247.212.117:8088/api}
+  payment:
+    usdt:
+      address: ${TESIM_USDT_ADDRESS:TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv}
+      rate: 1
+    stripe:
+      # Stripe Dashboard Webhook 填：
+      # http://158.247.212.117:8088/api/payment/stripe/webhook
+      api-key: ${TESIM_STRIPE_API_KEY:}
+      webhook-secret: ${TESIM_STRIPE_WEBHOOK_SECRET:whsec_07f9c577a5f1b8c46f8b50337609fa805afb62ca27df4ed87b436e69ad66d148}
+      currency: usd
+
+logging:
+  level:
+    root: warn
+    com.tesim: info

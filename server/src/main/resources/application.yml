@@ -1,53 +1,60 @@
-server:
-  port: 8088
-  servlet:
-    context-path: /api
-
-spring:
-  application:
-    name: t-esim
-  profiles:
-    active: dev
-  servlet:
-    multipart:
-      max-file-size: 5MB
-      max-request-size: 25MB
-
-tesim:
-  upload:
-    dir: uploads
-    public-path: /uploads
-    max-bytes: 5242880
-  jwt:
-    secret: tesim-dev-jwt-secret-change-me-32bytes-min
-    expire-hours: 168
-  payment:
-    usdt:
-      # 沙箱/联调收款地址（TRC20）；可用 TESIM_USDT_ADDRESS 覆盖
-      address: ${TESIM_USDT_ADDRESS:TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv}
-      rate: 1
-    stripe:
-      # 明文 key 优先：TESIM_STRIPE_API_KEY；否则解码 api-key-b64（Stripe test 沙箱）
-      api-key: ${TESIM_STRIPE_API_KEY:}
-      api-key-b64: c2tfdGVzdF81MVR1bUdqUTRzSlZ2Nnp3MXFEaWxuemVpQmZ6bTdzMm54NHY0ZjlzMjRSeG0xVGcxb3RMZWZ3S2tmdTZ1U0RKbHUzUkE5OHZuRkZaRGRMTVNiYkpyd3h2STAwSlhZMTVwamw=
-      webhook-secret: ${TESIM_STRIPE_WEBHOOK_SECRET:whsec_07f9c577a5f1b8c46f8b50337609fa805afb62ca27df4ed87b436e69ad66d148}
-      success-url: ${TESIM_STRIPE_SUCCESS_URL:http://localhost:5173/checkout/stripe/success}
-      cancel-url: ${TESIM_STRIPE_CANCEL_URL:http://localhost:5173/checkout/stripe/cancel}
-      currency: usd
-
-mybatis-plus:
-  mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.tesim.entity
-  configuration:
-    map-underscore-to-camel-case: true
-  global-config:
-    db-config:
-      id-type: auto
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
-
-logging:
-  level:
-    root: info
-    com.tesim: debug
+server:
+  port: 8088
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: t-esim
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 25MB
+
+tesim:
+  # 站点公网地址（支付跳转 / Webhook）。本地默认 localhost；prod 见 application-prod.yml
+  site:
+    # 前台：用户支付完成后浏览器回到这里
+    public-web-base: ${TESIM_PUBLIC_WEB_BASE:http://localhost:5173}
+    # 后端 API 公网根（含 /api）：Stripe Dashboard Webhook = {public-api-base}/payment/stripe/webhook
+    public-api-base: ${TESIM_PUBLIC_API_BASE:http://localhost:8088/api}
+  upload:
+    dir: uploads
+    public-path: /uploads
+    max-bytes: 5242880
+  jwt:
+    secret: tesim-dev-jwt-secret-change-me-32bytes-min
+    expire-hours: 168
+  payment:
+    usdt:
+      # 沙箱/联调收款地址（TRC20）；可用 TESIM_USDT_ADDRESS 覆盖
+      address: ${TESIM_USDT_ADDRESS:TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv}
+      rate: 1
+    stripe:
+      # 明文 key 优先：TESIM_STRIPE_API_KEY；否则解码 api-key-b64（Stripe test 沙箱）
+      api-key: ${TESIM_STRIPE_API_KEY:}
+      api-key-b64: c2tfdGVzdF81MVR1bUdqUTRzSlZ2Nnp3MXFEaWxuemVpQmZ6bTdzMm54NHY0ZjlzMjRSeG0xVGcxb3RMZWZ3S2tmdTZ1U0RKbHUzUkE5OHZuRkZaRGRMTVNiYkpyd3h2STAwSlhZMTVwamw=
+      webhook-secret: ${TESIM_STRIPE_WEBHOOK_SECRET:whsec_07f9c577a5f1b8c46f8b50337609fa805afb62ca27df4ed87b436e69ad66d148}
+      # 留空则自动用 tesim.site.public-web-base + /checkout/stripe/success|cancel
+      success-url: ${TESIM_STRIPE_SUCCESS_URL:}
+      cancel-url: ${TESIM_STRIPE_CANCEL_URL:}
+      currency: usd
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.tesim.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+logging:
+  level:
+    root: info
+    com.tesim: debug

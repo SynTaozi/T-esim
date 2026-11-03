@@ -12,14 +12,14 @@ spring:
       password: '@Syntest111'
 
 tesim:
+  site:
+    public-web-base: http://localhost:5173
+    public-api-base: http://localhost:8088/api
   payment:
     usdt:
       address: TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv
       rate: 1
     stripe:
-      # 本地沙箱：微信 / 支付宝 / 银行卡走 Stripe Checkout test mode（api-key-b64 见 application.yml）
-      success-url: http://localhost:5173/checkout/stripe/success
-      cancel-url: http://localhost:5173/checkout/stripe/cancel
       currency: usd
 
 logging:

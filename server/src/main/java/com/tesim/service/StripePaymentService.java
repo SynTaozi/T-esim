@@ -8,6 +8,7 @@ import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
 import com.tesim.common.BizException;
+import com.tesim.config.StripeConfig;
 import com.tesim.config.StripeProperties;
 import com.tesim.dto.payment.CheckoutRedirectVO;
 import com.tesim.dto.payment.StripeConfirmVO;
@@ -37,6 +38,7 @@ import java.util.Objects;
 public class StripePaymentService {
 
     private final StripeProperties stripeProperties;
+    private final StripeConfig stripeConfig;
     private final SalesOrderService salesOrderService;
     private final SalesOrderPaymentService salesOrderPaymentService;
     private final SalesOrderItemService salesOrderItemService;
@@ -205,12 +207,18 @@ public class StripePaymentService {
         if (amountCents < 50) {
             throw new BizException("支付金额过低，无法发起 Stripe 支付");
         }
+        String successBase = stripeConfig.resolveSuccessUrl();
+        String cancelBase = stripeConfig.resolveCancelUrl();
+        if (!StringUtils.hasText(successBase) || !successBase.startsWith("http")
+                || !StringUtils.hasText(cancelBase) || !cancelBase.startsWith("http")) {
+            throw new BizException("未配置支付回跳地址，请设置环境变量 TESIM_PUBLIC_WEB_BASE（前台域名，如 https://你的域名）");
+        }
 
         SessionCreateParams.Builder builder = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(appendQuery(stripeProperties.getSuccessUrl(), "orderNo", businessNo)
+                .setSuccessUrl(appendQuery(successBase, "orderNo", businessNo)
                         + "&session_id={CHECKOUT_SESSION_ID}")
-                .setCancelUrl(appendQuery(stripeProperties.getCancelUrl(), "orderNo", businessNo))
+                .setCancelUrl(appendQuery(cancelBase, "orderNo", businessNo))
                 .setClientReferenceId(businessNo)
                 .putMetadata("orderNo", businessNo)
                 .putMetadata("paymentMethod", method)

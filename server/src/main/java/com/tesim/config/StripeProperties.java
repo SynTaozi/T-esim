@@ -21,8 +21,14 @@ public class StripeProperties {
     /** Base64 编码的沙箱 api-key，仅当 apiKey 为空时使用 */
     private String apiKeyB64 = "";
     private String webhookSecret = "";
-    private String successUrl = "http://localhost:5173/checkout/stripe/success";
-    private String cancelUrl = "http://localhost:5173/checkout/stripe/cancel";
+    /**
+     * 可显式覆盖；为空则使用 tesim.site.public-web-base + /checkout/stripe/success
+     */
+    private String successUrl = "";
+    /**
+     * 可显式覆盖；为空则使用 tesim.site.public-web-base + /checkout/stripe/cancel
+     */
+    private String cancelUrl = "";
     private String currency = "usd";
 
     public String resolveApiKey() {
