@@ -118,6 +118,10 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
         if (p == null || Boolean.TRUE.equals(p.getDeleted())) {
             throw new BizException("商品不存在");
         }
+        // DEVICE 仅可选配件，不单独售卖
+        if ("DEVICE".equalsIgnoreCase(p.getProductKind())) {
+            throw new BizException("商品不存在");
+        }
         return toFrontProduct(p);
     }
 
@@ -225,9 +229,13 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
     }
 
     private LambdaQueryWrapper<Product> baseOnSale() {
+        // DEVICE 仅作可选实体配件，不可单独出现在商品列表
         return new LambdaQueryWrapper<Product>()
                 .eq(Product::getStatus, "ON_SALE")
-                .eq(Product::getDeleted, false);
+                .eq(Product::getDeleted, false)
+                .and(w -> w.isNull(Product::getProductKind)
+                        .or()
+                        .ne(Product::getProductKind, "DEVICE"));
     }
 
     private boolean matchRegion(ProductVO product, String region) {

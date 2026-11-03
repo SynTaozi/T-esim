@@ -181,9 +181,9 @@
                 <el-button @click="openCatDialog('root')">+</el-button>
               </div>
             </el-form-item>
-            <el-form-item label="二级分类" required>
+            <el-form-item label="二级分类">
               <div class="select-with-action">
-                <el-select v-model="form.categoryId" clearable placeholder="选择二级分类" style="flex: 1">
+                <el-select v-model="form.categoryId" clearable placeholder="可选，选择二级分类" style="flex: 1">
                   <el-option v-for="c in children" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
                 </el-select>
                 <el-button @click="openCatDialog('child')">+</el-button>
@@ -414,10 +414,6 @@ async function saveCategory() {
 async function save() {
   if (!(form.nameZh || '').trim()) {
     ElMessage.warning('请填写中文名')
-    return
-  }
-  if (!form.categoryId) {
-    ElMessage.warning('请选择二级分类')
     return
   }
   saving.value = true
