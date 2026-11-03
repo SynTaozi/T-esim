@@ -145,8 +145,8 @@ CREATE TABLE `product_sku` (
   `updated_at`       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_sku_code` (`sku_code`),
-  -- PLAN：months 必填且同 SPU 不重复；DEVICE：months 置 NULL，MySQL 允许多条 NULL
-  UNIQUE KEY `uk_sku_product_months` (`product_id`, `months`),
+  -- 同 SPU 允许相同 months（多档同月）
+  KEY `idx_sku_product_months` (`product_id`, `months`),
   KEY `idx_sku_product_status` (`product_id`, `status`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='可售 SKU（月份档/规格）';
 

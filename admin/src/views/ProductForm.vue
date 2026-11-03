@@ -112,6 +112,9 @@
               <h3 class="card-title">定价档</h3>
               <el-button type="primary" plain size="small" @click="addSku">添加档位</el-button>
             </div>
+            <div class="field-hint" style="margin-top: -4px; margin-bottom: 12px">
+              可添加多档相同月份；保存时会同步增删改定价档。
+            </div>
             <div v-if="!form.skus.length" class="empty-skus">
               暂无定价档，点击右上角添加
             </div>
@@ -446,10 +449,18 @@ async function save() {
       isFeatured: badgeMark.value === 'featured',
       isPhysical: physicalType.value === 1,
       isPhysicalCard: physicalType.value,
+      // 始终提交 skus，编辑时后端会按 id 同步增删改
       skus: (form.skus || []).map((s: any, i: number) => ({
-        ...s,
+        id: s.id,
+        skuCode: s.skuCode,
         label: s.labelZh || s.label,
+        labelZh: s.labelZh || s.label,
         labelEn: s.labelEn,
+        months: s.months,
+        durationDays: s.durationDays,
+        salePrice: s.salePrice,
+        isDefault: !!s.isDefault,
+        status: s.status ?? 1,
         sortOrder: i
       }))
     }

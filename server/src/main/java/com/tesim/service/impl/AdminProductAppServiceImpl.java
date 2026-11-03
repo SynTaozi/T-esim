@@ -29,8 +29,10 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -104,7 +106,7 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         upsertI18n(p.getId(), req);
         replaceCoverage(p.getId(), req);
         ensureDefaultSku(p, req);
-        if (req.getSkus() != null) {
+        if (req.getSkus() != null && !req.getSkus().isEmpty()) {
             for (AdminSkuRequest skuReq : req.getSkus()) {
                 createSkuInternal(p.getId(), skuReq);
             }
@@ -138,7 +140,9 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         if (req.getApplicableRegions() != null || req.getCountries() != null) {
             replaceCoverage(id, req);
         }
-        if (req.getPrice() != null || req.getOriginalPrice() != null || req.getStock() != null) {
+        if (req.getSkus() != null) {
+            syncSkus(id, req.getSkus());
+        } else if (req.getPrice() != null || req.getOriginalPrice() != null || req.getStock() != null) {
             syncDefaultSku(p, req);
         }
         return toVO(require(id), true);
@@ -305,15 +309,61 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         if (reqs == null) {
             return listSkus(productId);
         }
-        List<AdminSkuVO> result = new ArrayList<>();
+        syncSkus(productId, reqs);
+        return listSkus(productId);
+    }
+
+    /**
+     * 同步定价档：按 id 更新/新建，删除未提交的旧档。允许同一产品下 months 重复。
+     */
+    private void syncSkus(Long productId, List<AdminSkuRequest> reqs) {
+        List<ProductSku> existing = productSkuService.list(new LambdaQueryWrapper<ProductSku>()
+                .eq(ProductSku::getProductId, productId));
+        Set<Long> incomingIds = new HashSet<>();
         for (AdminSkuRequest req : reqs) {
-            if (req.getId() != null) {
-                result.add(updateSku(productId, req.getId(), req));
-            } else {
-                result.add(createSku(productId, req));
+            if (req != null && req.getId() != null) {
+                incomingIds.add(req.getId());
             }
         }
-        return result;
+        // 先删掉移除的档，再更新/新建
+        for (ProductSku old : existing) {
+            if (!incomingIds.contains(old.getId())) {
+                i18nProductSkuService.remove(new LambdaQueryWrapper<I18nProductSku>()
+                        .eq(I18nProductSku::getSkuId, old.getId()));
+                productSkuService.removeById(old.getId());
+            }
+        }
+        int idx = 0;
+        for (AdminSkuRequest req : reqs) {
+            if (req == null) {
+                continue;
+            }
+            if (req.getSortOrder() == null) {
+                req.setSortOrder(idx);
+            }
+            idx++;
+            if (req.getId() != null) {
+                ProductSku sku = productSkuService.getById(req.getId());
+                if (sku == null || !Objects.equals(sku.getProductId(), productId)) {
+                    throw new BizException("定价档不存在: " + req.getId());
+                }
+                applySku(sku, req, false);
+                productSkuService.updateById(sku);
+                upsertSkuI18n(sku.getId(), req);
+            } else {
+                createSkuInternal(productId, req);
+            }
+        }
+        // 保证至少有一个默认档
+        List<ProductSku> after = productSkuService.list(new LambdaQueryWrapper<ProductSku>()
+                .eq(ProductSku::getProductId, productId)
+                .orderByAsc(ProductSku::getSortOrder)
+                .orderByAsc(ProductSku::getId));
+        if (!after.isEmpty() && after.stream().noneMatch(s -> Boolean.TRUE.equals(s.getIsDefault()))) {
+            ProductSku first = after.get(0);
+            first.setIsDefault(true);
+            productSkuService.updateById(first);
+        }
     }
 
     private ProductSku createSkuInternal(Long productId, AdminSkuRequest req) {
