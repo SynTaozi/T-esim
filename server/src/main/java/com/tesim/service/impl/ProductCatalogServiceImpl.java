@@ -256,6 +256,8 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                 .dataSupport(Boolean.TRUE.equals(p.getSupportData()) ? 1 : 0)
                 .voiceSupport(Boolean.TRUE.equals(p.getSupportVoice()) ? 1 : 0)
                 .isPhysicalCard(Boolean.TRUE.equals(p.getIsPhysical()) ? 1 : 0)
+                .isFeatured(Boolean.TRUE.equals(p.getIsFeatured()))
+                .isHot(Boolean.TRUE.equals(p.getIsHot()))
                 .itemType(p.getCategoryId())
                 .categoryName(catI18n != null ? catI18n.getName() : (cat != null ? cat.getCode() : null))
                 .categoryCode(cat != null ? cat.getCode() : null)

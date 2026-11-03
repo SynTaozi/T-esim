@@ -32,6 +32,8 @@ public class ProductVO {
     private Integer dataSupport;
     private Integer voiceSupport;
     private Integer isPhysicalCard;
+    private Boolean isFeatured;
+    private Boolean isHot;
     private Long itemType;
     private String categoryName;
     private String categoryCode;

@@ -19,6 +19,8 @@ public class AdminProductVO {
     private String nameEn;
     private String description;
     private String descriptionEn;
+    private String summaryZh;
+    private String summaryEn;
     private String features;
     private String featuresEn;
     private BigDecimal price;

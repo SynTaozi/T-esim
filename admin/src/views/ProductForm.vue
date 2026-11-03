@@ -305,17 +305,39 @@ async function save() {
   try {
     const statusMap: Record<string, number> = { ON_SALE: 1, DRAFT: 0, OFF_SALE: 0 }
     const payload = {
-      ...form,
       name: (form.nameZh || '').trim(),
+      nameZh: (form.nameZh || '').trim(),
+      nameEn: (form.nameEn || '').trim() || undefined,
+      summaryZh: form.summaryZh ?? '',
+      summaryEn: form.summaryEn ?? '',
       spuCode: (form.spuCode || '').trim() || undefined,
+      productKind: form.productKind,
       categoryId: form.categoryId,
       subCategoryId: form.categoryId,
-      status: statusMap[form.status] ?? 0
+      status: statusMap[form.status] ?? 0,
+      sortOrder: form.sortOrder ?? 0,
+      dataLimit: form.dataLimit || undefined,
+      validityDays: form.baseValidityDays ?? 0,
+      baseValidityDays: form.baseValidityDays ?? 0,
+      displayImageUrl: form.displayImageUrl || undefined,
+      imageUrl: form.displayImageUrl || undefined,
+      applicableRegions: form.coverageRegions || [],
+      isFeatured: !!form.isFeatured,
+      isHot: !!form.isHot,
+      isPhysical: !!form.isPhysical,
+      isPhysicalCard: form.isPhysical ? 1 : 0,
+      skus: (form.skus || []).map((s: any) => ({
+        ...s,
+        label: s.labelZh || s.label,
+        labelEn: s.labelEn
+      }))
     }
-    if (isEdit.value) {
-      await productApi.update(Number(route.params.id), payload)
-    } else {
-      await productApi.create(payload)
+    const res = isEdit.value
+      ? await productApi.update(Number(route.params.id), payload)
+      : await productApi.create(payload)
+    if (res && typeof res.code === 'number' && res.code !== 200) {
+      ElMessage.error(res.message || '保存失败')
+      return
     }
     ElMessage.success('已保存')
     router.push('/products')
@@ -333,10 +355,17 @@ onMounted(async () => {
   loading.value = true
   try {
     const res = await productApi.get(Number(route.params.id))
-    Object.assign(form, res.data || {})
+    const data = res.data || {}
+    Object.assign(form, data)
     if (!form.skus) form.skus = []
+    form.summaryZh = data.summaryZh ?? data.summary ?? ''
+    form.isFeatured = !!data.isFeatured
+    form.isHot = !!data.isHot
+    form.isPhysical = data.isPhysical != null ? !!data.isPhysical : data.isPhysicalCard === 1
+    form.baseValidityDays = data.baseValidityDays ?? data.validityDays ?? 30
+    form.coverageRegions = data.applicableRegions || data.coverageRegions || []
     // 后端 VO 的 categoryId 即二级分类；需反查所属大类
-    const subId = res.data?.subCategoryId || res.data?.categoryId
+    const subId = data.subCategoryId || data.categoryId
     form.categoryId = subId
     if (subId) {
       for (const r of roots.value) {
@@ -350,8 +379,8 @@ onMounted(async () => {
       }
     }
     // VO 用 1/0，表单用字符串
-    if (res.data?.status === 1) form.status = 'ON_SALE'
-    else if (res.data?.status === 0) form.status = 'OFF_SALE'
+    if (data.status === 1) form.status = 'ON_SALE'
+    else if (data.status === 0) form.status = 'OFF_SALE'
   } finally {
     loading.value = false
   }

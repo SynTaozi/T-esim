@@ -391,6 +391,8 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         }
         if (req.getValidityDays() != null) {
             p.setBaseValidityDays(req.getValidityDays());
+        } else if (req.getBaseValidityDays() != null) {
+            p.setBaseValidityDays(req.getBaseValidityDays());
         }
         if (req.getSmsSupport() != null) {
             p.setSupportSms(req.getSmsSupport() == 1);
@@ -405,6 +407,8 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         }
         if (req.getIsPhysicalCard() != null) {
             p.setIsPhysical(req.getIsPhysicalCard() == 1);
+        } else if (req.getIsPhysical() != null) {
+            p.setIsPhysical(req.getIsPhysical());
         } else if (creating) {
             p.setIsPhysical(false);
         }
@@ -510,12 +514,14 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
     }
 
     private void upsertI18n(Long productId, AdminProductRequest req) {
-        upsertProductI18n(productId, "zh", req.getName(), req.getDescription(), req.getFeatures());
-        upsertProductI18n(productId, "en", req.getNameEn(), req.getDescriptionEn(), req.getFeaturesEn());
+        String nameZh = StringUtils.hasText(req.getName()) ? req.getName() : req.getNameZh();
+        upsertProductI18n(productId, "zh", nameZh, req.getSummaryZh(), req.getDescription(), req.getFeatures());
+        upsertProductI18n(productId, "en", req.getNameEn(), req.getSummaryEn(), req.getDescriptionEn(), req.getFeaturesEn());
     }
 
-    private void upsertProductI18n(Long productId, String locale, String name, String description, String features) {
-        if (!StringUtils.hasText(name) && description == null && features == null) {
+    private void upsertProductI18n(Long productId, String locale, String name, String summary,
+                                   String description, String features) {
+        if (!StringUtils.hasText(name) && summary == null && description == null && features == null) {
             return;
         }
         I18nProduct existing = i18nProductService.getOne(new LambdaQueryWrapper<I18nProduct>()
@@ -529,12 +535,16 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
             row.setProductId(productId);
             row.setLocale(locale);
             row.setName(name.trim());
+            row.setSummary(summary);
             row.setDescription(description);
             row.setFeatures(features);
             i18nProductService.save(row);
         } else {
             if (StringUtils.hasText(name)) {
                 existing.setName(name.trim());
+            }
+            if (summary != null) {
+                existing.setSummary(summary);
             }
             if (description != null) {
                 existing.setDescription(description);
@@ -607,6 +617,8 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
                 .nameEn(en != null ? en.getName() : null)
                 .description(zh != null ? zh.getDescription() : null)
                 .descriptionEn(en != null ? en.getDescription() : null)
+                .summaryZh(zh != null ? zh.getSummary() : null)
+                .summaryEn(en != null ? en.getSummary() : null)
                 .features(zh != null ? zh.getFeatures() : null)
                 .featuresEn(en != null ? en.getFeatures() : null)
                 .price(def != null ? def.getSalePrice() : BigDecimal.ZERO)

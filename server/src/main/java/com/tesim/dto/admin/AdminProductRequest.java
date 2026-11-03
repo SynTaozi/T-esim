@@ -9,8 +9,12 @@ import java.util.List;
 public class AdminProductRequest {
     private String name;
     private String nameEn;
+    /** 兼容管理端表单 nameZh */
+    private String nameZh;
     private String description;
     private String descriptionEn;
+    private String summaryZh;
+    private String summaryEn;
     private String features;
     private String featuresEn;
     private BigDecimal price;
@@ -21,6 +25,8 @@ public class AdminProductRequest {
     private String countries;
     private String dataLimit;
     private Integer validityDays;
+    /** 兼容管理端表单 baseValidityDays */
+    private Integer baseValidityDays;
     private Integer stock;
     private String imageUrl;
     private String displayImageUrl;
@@ -35,6 +41,8 @@ public class AdminProductRequest {
     private Integer voiceSupport;
     private Integer topupType;
     private Integer isPhysicalCard;
+    /** 兼容管理端表单 isPhysical（布尔） */
+    private Boolean isPhysical;
     private Integer sortOrder;
     private String spuCode;
     private String productKind;

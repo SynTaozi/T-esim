@@ -104,30 +104,13 @@
               class="filter-search-input" />
           </div>
         </div>
-        <!-- 窄屏 / 边距不足时：顶部横排展示二级分类 -->
-        <div v-if="isPhoneCategory && subCategories.length && subcategoryRailMode === 'inline'" class="subcategory-inline">
-          <button
-            type="button"
-            class="subcategory-inline__item"
-            :class="{ 'subcategory-inline__item--active': !selectedSubCategoryId }"
-            @click="selectSubCategory(0)"
-          >{{ $t('phoneNumbers.allSubCategories') }}</button>
-          <button
-            v-for="sub in subCategories"
-            :key="sub.id"
-            type="button"
-            class="subcategory-inline__item"
-            :class="{ 'subcategory-inline__item--active': selectedSubCategoryId === sub.id }"
-            @click="selectSubCategory(sub.id)"
-          >{{ subCategoryLabel(sub) }}</button>
-        </div>
       </div>
       
 
       <!-- Product Grid -->
       <div v-loading="loading" class="product-grid">
         <router-link
-          v-for="(product, idx) in products"
+          v-for="product in products"
           :key="product.id"
           :to="'/products/' + product.id"
           class="product-card">
@@ -139,7 +122,9 @@
               :alt="getProductName(product)"
               class="card-img" />
             <div v-else class="card-img-placeholder">{{ getProductFlag(product) }}</div>
-            <div v-if="idx === 0" class="card-badge">Best Seller</div>
+            <div v-if="(product as any).isHot || (product as any).isFeatured" class="card-badge">
+              {{ (product as any).isHot ? 'Best Seller' : 'Featured' }}
+            </div>
           </div>
           <!-- Body -->
           <div class="card-body">
@@ -567,7 +552,7 @@ const subCategories = ref<ProductSubcategory[]>([])
 const selectedSubCategoryId = ref(0)
 const subCategoryExpanded = ref(true)
 const subcategoryRailRef = ref<HTMLElement | null>(null)
-/** float：浮在内容左侧；inline：顶部横排，避免盖住产品 */
+/** 二级分类固定左侧悬浮，不再改顶部横排 */
 const subcategoryRailMode = ref<'float' | 'inline'>('float')
 const subcategoryRailLeft = ref('12px')
 /** 仅当页脚即将盖住侧栏时隐藏；默认显示 */
@@ -576,29 +561,18 @@ const subcategoryRailVisible = ref(true)
 function updateSubcategoryRailPosition() {
   if (!isPhoneCategory.value || !subCategories.value.length) {
     subcategoryRailVisible.value = true
-    subcategoryRailMode.value = 'inline'
+    subcategoryRailMode.value = 'float'
     return
   }
 
   const pageMain = document.querySelector('.products-page .page-main') as HTMLElement | null
   const contentLeft = pageMain?.getBoundingClientRect().left ?? 0
   const gap = 8
-  const minEdge = 12
-  // 用实测宽度判断左侧是否放得下；未挂载时按展开态估算
-  const rail = subcategoryRailRef.value
-  const railWidth = rail?.offsetWidth || (subCategoryExpanded.value ? 196 : 36)
-  const canFloat = contentLeft >= railWidth + gap + minEdge
-
-  if (!canFloat) {
-    subcategoryRailMode.value = 'inline'
-    subcategoryRailVisible.value = true
-    return
-  }
-
   // left 对齐内容区左缘，再由 CSS translateX(-100%) 整块贴在外侧
   subcategoryRailMode.value = 'float'
-  subcategoryRailLeft.value = `${contentLeft - gap}px`
+  subcategoryRailLeft.value = `${Math.max(contentLeft - gap, 12)}px`
 
+  const rail = subcategoryRailRef.value
   const footer = document.querySelector('.site-footer') as HTMLElement | null
   if (!footer) {
     subcategoryRailVisible.value = true
