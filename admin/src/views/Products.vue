@@ -28,9 +28,10 @@
             <StatusTag :status="row.status" :label="statusLabel(row.status)" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="$router.push(`/products/edit/${row.id}`)">编辑</el-button>
+            <el-button link type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -51,6 +52,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { productApi } from '@/api/product'
@@ -97,6 +99,21 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function remove(row: { id: number; name?: string }) {
+  await ElMessageBox.confirm(
+    `确认删除产品「${row.name || row.id}」？删除后不可在前台展示。`,
+    '提示',
+    { type: 'warning' }
+  )
+  const res = await productApi.remove(row.id)
+  if (res && typeof res.code === 'number' && res.code !== 200) {
+    ElMessage.error(res.message || '删除失败')
+    return
+  }
+  ElMessage.success('已删除')
+  await load()
 }
 
 onMounted(load)

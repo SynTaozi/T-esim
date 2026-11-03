@@ -39,9 +39,11 @@ export const appDownloadApi = {
 
 export const paymentMethodApi = {
   list: () => api.get('/admin/payment-methods') as Promise<ApiResult<any[]>>,
+  create: (data: unknown) => api.post('/admin/payment-methods', data) as Promise<ApiResult<any>>,
   update: (id: number, data: unknown) => api.put(`/admin/payment-methods/${id}`, data) as Promise<ApiResult<any>>,
   updateEnabled: (id: number, enabled: boolean) =>
-    api.put(`/admin/payment-methods/${id}/enabled`, { enabled }) as Promise<ApiResult<void>>
+    api.put(`/admin/payment-methods/${id}/enabled`, { enabled }) as Promise<ApiResult<void>>,
+  remove: (id: number) => api.delete(`/admin/payment-methods/${id}`) as Promise<ApiResult<void>>
 }
 
 export const couponApi = {
