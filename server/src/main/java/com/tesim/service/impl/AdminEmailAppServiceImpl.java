@@ -261,6 +261,11 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
         if (creating && !StringUtils.hasText(req.getPassword())) {
             throw new BizException("请填写密码");
         }
+        String purpose = normalizePurpose(req.getPurpose());
+        if (purpose == null) {
+            throw new BizException("请选择用途：GENERAL / SHIPPING / PAYMENT / SUPPORT");
+        }
+        req.setPurpose(purpose);
     }
 
     private void applyAccount(SysEmailAccount a, AdminEmailAccountRequest req, boolean creating) {
@@ -276,8 +281,21 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
         a.setSmtpPort(req.getSmtpPort());
         a.setImapHost(req.getImapHost());
         a.setImapPort(req.getImapPort());
-        a.setPurpose(req.getPurpose());
+        // DB purpose NOT NULL；未传时默认 GENERAL，避免插入失败却被前端当成成功
+        String purpose = normalizePurpose(req.getPurpose());
+        a.setPurpose(purpose != null ? purpose : MailPurposes.GENERAL);
         a.setEnabled(req.getEnabled() == null || req.getEnabled());
+    }
+
+    private static String normalizePurpose(String purpose) {
+        if (!StringUtils.hasText(purpose)) {
+            return MailPurposes.GENERAL;
+        }
+        String p = purpose.trim().toUpperCase();
+        return switch (p) {
+            case MailPurposes.GENERAL, MailPurposes.SHIPPING, MailPurposes.PAYMENT, MailPurposes.SUPPORT -> p;
+            default -> null;
+        };
     }
 
     private SysEmailAccount requireAccount(Long id) {

@@ -18,10 +18,20 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    const data = response.data
+    // 后端业务失败常仍返回 HTTP 200 + { code != 200 }，必须按失败处理，避免页面误报「保存成功」
+    if (data && typeof data === 'object' && typeof data.code === 'number' && data.code !== 200) {
+      const message = data.message || '操作失败'
+      ElMessage.error(message)
+      return Promise.reject(data)
+    }
+    return data
+  },
   (error) => {
     const status = error.response?.status
-    const message = error.response?.data?.message || error.message || '操作失败'
+    const payload = error.response?.data
+    const message = payload?.message || error.message || '操作失败'
     ElMessage.error(message)
     // 未带 token / token 失效时后端可能返回 401；无 ADMIN 角色为 403
     if (status === 401 || status === 403) {
