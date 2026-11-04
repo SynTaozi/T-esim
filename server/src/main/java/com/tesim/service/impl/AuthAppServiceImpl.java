@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -52,21 +53,7 @@ public class AuthAppServiceImpl implements AuthAppService {
             throw new BizException("邮箱已被注册");
         }
         String code = codeService.send("REGISTER", em);
-        mailSendService.sendAsync(MailMessage.builder()
-                .to(em)
-                .purpose(MailPurposes.GENERAL)
-                .bizType(MailBizTypes.AUTH_REGISTER_CODE)
-                .bizId(em)
-                .templateCode(MailBizTypes.AUTH_REGISTER_CODE)
-                .locale("zh")
-                .variables(Map.of(
-                        "code", code,
-                        "email", em,
-                        "expireMinutes", "10"
-                ))
-                .subject("【Tesim】注册验证码")
-                .htmlBody("<p>您的注册验证码是：<strong>" + code + "</strong>（10 分钟内有效）</p>")
-                .build());
+        sendAuthCodeMail(MailBizTypes.AUTH_REGISTER_CODE, em, code, "【Tesim】注册验证码");
         return new SendCodeVO(true, mailProperties.isExposeDevCode() ? code : null);
     }
 
@@ -77,22 +64,28 @@ public class AuthAppServiceImpl implements AuthAppService {
             throw new BizException("邮箱未注册");
         }
         String code = codeService.send("RESET", em);
-        mailSendService.sendAsync(MailMessage.builder()
-                .to(em)
-                .purpose(MailPurposes.GENERAL)
-                .bizType(MailBizTypes.AUTH_RESET_CODE)
-                .bizId(em)
-                .templateCode(MailBizTypes.AUTH_RESET_CODE)
-                .locale("zh")
-                .variables(Map.of(
-                        "code", code,
-                        "email", em,
-                        "expireMinutes", "10"
-                ))
-                .subject("【Tesim】重置密码验证码")
-                .htmlBody("<p>您的重置密码验证码是：<strong>" + code + "</strong>（10 分钟内有效）</p>")
-                .build());
+        sendAuthCodeMail(MailBizTypes.AUTH_RESET_CODE, em, code, "【Tesim】重置密码验证码");
         return new SendCodeVO(true, mailProperties.isExposeDevCode() ? code : null);
+    }
+
+    private void sendAuthCodeMail(String templateCode, String email, String code, String fallbackSubject) {
+        Map<String, String> vars = new HashMap<>();
+        // 模板同时存在 {{code}} / ${CODE}、{{validityMinutes}} / ${VALIDITY_MINUTES}
+        vars.put("code", code);
+        vars.put("email", email);
+        vars.put("validityMinutes", "10");
+        vars.put("expireMinutes", "10");
+        mailSendService.sendAsync(MailMessage.builder()
+                .to(email)
+                .purpose(MailPurposes.GENERAL)
+                .bizType(templateCode)
+                .bizId(email)
+                .templateCode(templateCode)
+                .locale("zh")
+                .variables(vars)
+                .subject(fallbackSubject)
+                .htmlBody("<p>您的验证码是：<strong>" + code + "</strong>（10 分钟内有效）</p>")
+                .build());
     }
 
     @Transactional

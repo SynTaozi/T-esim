@@ -80,7 +80,7 @@ public class AdminTicketAppServiceImpl implements AdminTicketAppService {
 
         if (ticket.getMemberId() != null) {
             Member owner = memberService.getById(ticket.getMemberId());
-            businessMailFacade.sendTicketReply(ticket, owner, req.getReply().trim());
+            businessMailFacade.sendTicketReply(ticket, owner, req.getReply().trim(), msg.getSenderName());
         }
         return toVO(ticket, true);
     }

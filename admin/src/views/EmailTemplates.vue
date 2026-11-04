@@ -38,6 +38,13 @@
         <el-form-item label="说明">
           <el-input v-model="form.description" placeholder="可选" />
         </el-form-item>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 14px"
+          :title="varHint(form.code)"
+        />
 
         <el-divider content-position="left">中文</el-divider>
         <el-form-item label="名称">
@@ -125,6 +132,17 @@ const form = reactive({
   bodyEn: '',
   enabled: true
 })
+
+function varHint(code: string) {
+  const map: Record<string, string> = {
+    AUTH_REGISTER_CODE: '变量：{{code}} / ${CODE}、{{email}} / ${EMAIL}、{{validityMinutes}} / ${VALIDITY_MINUTES}',
+    AUTH_RESET_CODE: '变量：{{code}}、{{email}}、{{validityMinutes}}（也可用 ${CODE} 写法）',
+    ORDER_SHIPPING: '变量：{{orderNo}} {{packageName}} {{shippingCarrier}} {{trackingNumber}} {{phone}} {{qrCodeUrl}} {{remark}} {{shippingTime}}；支持 {{#if xxx}}...{{/if}}',
+    ORDER_CUSTOMER_NOTICE: '变量：{{subject}} {{orderNo}} {{noticeContent}}',
+    TICKET_REPLY: '变量：{{ticketNo}} {{subject}} {{replyContent}} {{repliedBy}} {{ticketUrl}}'
+  }
+  return map[code] || '支持 {{var}}、${VAR}，以及 {{#if var}}...{{/if}}'
+}
 
 function resetForm() {
   form.id = 0

@@ -9,6 +9,7 @@ import com.tesim.entity.SysEmailSendLog;
 import com.tesim.entity.SysEmailTemplate;
 import com.tesim.mail.MailMessage;
 import com.tesim.mail.MailPurposes;
+import com.tesim.mail.MailTemplateRenderer;
 import com.tesim.service.I18nSysEmailTemplateService;
 import com.tesim.service.MailSendService;
 import com.tesim.service.SysEmailAccountService;
@@ -165,8 +166,8 @@ public class MailSendServiceImpl implements MailSendService {
             }
         }
         Map<String, String> vars = message.getVariables() == null ? Map.of() : message.getVariables();
-        subject = applyVars(subject, vars);
-        body = applyVars(body, vars);
+        subject = MailTemplateRenderer.render(subject, vars);
+        body = MailTemplateRenderer.render(body, vars);
         if (!StringUtils.hasText(subject)) {
             subject = message.getBizType() == null ? "Tesim notification" : message.getBizType();
         }
@@ -181,22 +182,6 @@ public class MailSendServiceImpl implements MailSendService {
                 .eq(I18nSysEmailTemplate::getTemplateId, templateId)
                 .eq(I18nSysEmailTemplate::getLocale, locale)
                 .last("LIMIT 1"));
-    }
-
-    private static String applyVars(String text, Map<String, String> vars) {
-        if (!StringUtils.hasText(text) || vars == null || vars.isEmpty()) {
-            return text;
-        }
-        String out = text;
-        for (Map.Entry<String, String> e : vars.entrySet()) {
-            String key = e.getKey();
-            if (!StringUtils.hasText(key)) {
-                continue;
-            }
-            String val = e.getValue() == null ? "" : e.getValue();
-            out = out.replace("{{" + key + "}}", val);
-        }
-        return out;
     }
 
     private static String normalizeLocale(String locale) {
