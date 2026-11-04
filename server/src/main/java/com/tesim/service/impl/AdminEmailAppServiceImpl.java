@@ -203,9 +203,26 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
     }
 
     public List<AdminEmailTemplateVO> listTemplates() {
-        return emailTemplateService.list(new LambdaQueryWrapper<SysEmailTemplate>()
-                        .orderByAsc(SysEmailTemplate::getId))
-                .stream().map(this::toTemplateVO).toList();
+        List<SysEmailTemplate> templates = emailTemplateService.list(new LambdaQueryWrapper<SysEmailTemplate>()
+                .orderByAsc(SysEmailTemplate::getId));
+        if (templates.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = templates.stream().map(SysEmailTemplate::getId).toList();
+        List<I18nSysEmailTemplate> i18nRows = i18nEmailTemplateService.list(new LambdaQueryWrapper<I18nSysEmailTemplate>()
+                .in(I18nSysEmailTemplate::getTemplateId, ids));
+        Map<Long, I18nSysEmailTemplate> zhMap = new HashMap<>();
+        Map<Long, I18nSysEmailTemplate> enMap = new HashMap<>();
+        for (I18nSysEmailTemplate row : i18nRows) {
+            if ("zh".equalsIgnoreCase(row.getLocale())) {
+                zhMap.put(row.getTemplateId(), row);
+            } else if ("en".equalsIgnoreCase(row.getLocale())) {
+                enMap.put(row.getTemplateId(), row);
+            }
+        }
+        return templates.stream()
+                .map(t -> toTemplateVO(t, zhMap.get(t.getId()), enMap.get(t.getId())))
+                .toList();
     }
 
     public AdminEmailTemplateVO getTemplate(Long id) {
@@ -325,9 +342,9 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
             I18nSysEmailTemplate row = new I18nSysEmailTemplate();
             row.setTemplateId(templateId);
             row.setLocale(locale);
-            row.setName(name);
-            row.setSubject(subject);
-            row.setBody(body);
+            row.setName(StringUtils.hasText(name) ? name.trim() : ("zh".equals(locale) ? "邮件模板" : "Email template"));
+            row.setSubject(subject == null ? "" : subject);
+            row.setBody(body == null ? "" : body);
             i18nEmailTemplateService.save(row);
         } else {
             if (StringUtils.hasText(name)) {
@@ -363,14 +380,20 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
     private AdminEmailTemplateVO toTemplateVO(SysEmailTemplate t) {
         I18nSysEmailTemplate zh = i18nEmailTemplateService.getOne(new LambdaQueryWrapper<I18nSysEmailTemplate>()
                 .eq(I18nSysEmailTemplate::getTemplateId, t.getId())
-                .eq(I18nSysEmailTemplate::getLocale, "zh"));
+                .eq(I18nSysEmailTemplate::getLocale, "zh")
+                .last("LIMIT 1"));
         I18nSysEmailTemplate en = i18nEmailTemplateService.getOne(new LambdaQueryWrapper<I18nSysEmailTemplate>()
                 .eq(I18nSysEmailTemplate::getTemplateId, t.getId())
-                .eq(I18nSysEmailTemplate::getLocale, "en"));
+                .eq(I18nSysEmailTemplate::getLocale, "en")
+                .last("LIMIT 1"));
+        return toTemplateVO(t, zh, en);
+    }
+
+    private AdminEmailTemplateVO toTemplateVO(SysEmailTemplate t, I18nSysEmailTemplate zh, I18nSysEmailTemplate en) {
         return AdminEmailTemplateVO.builder()
                 .id(t.getId())
                 .code(t.getCode())
-                .name(zh != null ? zh.getName() : t.getCode())
+                .name(zh != null && StringUtils.hasText(zh.getName()) ? zh.getName() : t.getCode())
                 .nameEn(en != null ? en.getName() : null)
                 .subject(zh != null ? zh.getSubject() : null)
                 .subjectEn(en != null ? en.getSubject() : null)
