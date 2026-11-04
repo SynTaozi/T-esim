@@ -24,7 +24,7 @@ public interface OrderAppService {
 
 
 
-    List<OrderVO> guestLookup(String email);
+    PageResult<OrderVO> guestLookup(String email, Integer page, Integer pageSize);
 
 
 

@@ -36,18 +36,18 @@ public class OrderController {
     }
 
     @PostMapping("/guest-lookup")
-    public ApiResponse<List<OrderVO>> guestLookup(@RequestBody GuestOrderLookupRequest body, HttpServletRequest request) {
+    public ApiResponse<PageResult<OrderVO>> guestLookup(@RequestBody GuestOrderLookupRequest body, HttpServletRequest request) {
         String ip = clientIp(request);
         String emailKey = StringUtils.hasText(body.getEmail()) ? sha256(body.getEmail().trim().toLowerCase()) : "none";
         assertLookupAllowed("guest_lookup:ip:" + ip);
         assertLookupAllowed("guest_lookup:email:" + emailKey);
         try {
-            List<OrderVO> orders = orderAppService.guestLookup(body.getEmail());
+            PageResult<OrderVO> page = orderAppService.guestLookup(body.getEmail(), body.getPage(), body.getPageSize());
             // Count empty results against rate limit to reduce email probing.
-            if (orders == null || orders.isEmpty()) {
+            if (page == null || page.getTotalElements() <= 0) {
                 bumpLookup(ip, emailKey);
             }
-            return ApiResponse.ok(orders);
+            return ApiResponse.ok(page);
         } catch (BizException e) {
             bumpLookup(ip, emailKey);
             throw e;

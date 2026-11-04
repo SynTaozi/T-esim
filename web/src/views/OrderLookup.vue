@@ -30,11 +30,11 @@
           {{ $t('orderLookup.notFound') }}
         </div>
         <div v-else class="result-meta">
-          {{ $t('orderLookup.resultCount', { count: orders.length }) }}
+          {{ $t('orderLookup.resultCount', { count: total }) }}
         </div>
 
         <article
-          v-for="order in pagedOrders"
+          v-for="order in orders"
           :key="order.id || order.orderNo"
           class="m2-card"
         >
@@ -172,13 +172,15 @@
           </div>
         </article>
 
-        <div v-if="orders.length > pageSize" class="pager">
+        <div v-if="total > pageSize" class="pager">
           <el-pagination
             v-model:current-page="page"
             :page-size="pageSize"
-            :total="orders.length"
+            :total="total"
             layout="total, prev, pager, next"
             background
+            :disabled="loading"
+            @current-change="onPageChange"
           />
         </div>
       </section>
@@ -188,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -205,15 +207,11 @@ const email = ref('')
 const loading = ref(false)
 const searched = ref(false)
 const orders = ref<any[]>([])
+const total = ref(0)
 const page = ref(1)
 const pageSize = 5
 /** orderKey -> 'ship' | 'detail' | null */
 const openPanels = ref<Record<string, 'ship' | 'detail' | null>>({})
-
-const pagedOrders = computed(() => {
-  const start = (page.value - 1) * pageSize
-  return orders.value.slice(start, start + pageSize)
-})
 
 function orderKey(order: any) {
   return String(order?.id || order?.orderNo || '')
@@ -335,7 +333,7 @@ async function copyText(text: string) {
   }
 }
 
-async function search() {
+async function fetchOrders(resetPage = false) {
   const em = email.value.trim()
   if (!em) {
     ElMessage.warning(t('checkout.emailRequired'))
@@ -345,15 +343,25 @@ async function search() {
     ElMessage.warning(t('checkout.emailInvalid'))
     return
   }
+  if (resetPage) page.value = 1
   loading.value = true
-  orders.value = []
-  searched.value = false
-  page.value = 1
   openPanels.value = {}
   try {
-    const res: any = await orderApi.guestLookup({ email: em })
+    const res: any = await orderApi.guestLookup({
+      email: em,
+      page: page.value,
+      pageSize
+    })
     if (res?.code === 200) {
-      orders.value = Array.isArray(res.data) ? res.data : []
+      const data = res.data
+      // Compatible with older List payload if API not yet upgraded
+      if (Array.isArray(data)) {
+        orders.value = data
+        total.value = data.length
+      } else {
+        orders.value = Array.isArray(data?.content) ? data.content : []
+        total.value = Number(data?.totalElements ?? orders.value.length)
+      }
       searched.value = true
     } else {
       ElMessage.error(res?.message || t('orderLookup.notFound'))
@@ -363,6 +371,18 @@ async function search() {
   } finally {
     loading.value = false
   }
+}
+
+async function search() {
+  orders.value = []
+  total.value = 0
+  searched.value = false
+  await fetchOrders(true)
+}
+
+async function onPageChange(p: number) {
+  page.value = p
+  await fetchOrders(false)
 }
 
 async function continuePay(order: any) {

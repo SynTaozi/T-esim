@@ -560,7 +560,7 @@ public class OrderAppServiceImpl implements OrderAppService {
         return email != null && email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     }
 
-    public List<OrderVO> guestLookup(String email) {
+    public PageResult<OrderVO> guestLookup(String email, Integer page, Integer pageSize) {
         String em = normalizeEmail(email);
         if (!StringUtils.hasText(em)) {
             throw new BizException("请输入下单邮箱");
@@ -568,12 +568,14 @@ public class OrderAppServiceImpl implements OrderAppService {
         if (!isValidEmail(em)) {
             throw new BizException("邮箱格式不正确");
         }
-        List<SalesOrder> orders = salesOrderService.list(new LambdaQueryWrapper<SalesOrder>()
-                .eq(SalesOrder::getBuyerEmail, em)
-                .eq(SalesOrder::getDeleted, false)
-                .orderByDesc(SalesOrder::getCreatedAt)
-                .last("LIMIT 50"));
-        return orders.stream().map(o -> toFrontOrder(o, true)).toList();
+        int p = page == null || page < 1 ? 1 : page;
+        int s = pageSize == null || pageSize < 1 ? 5 : Math.min(pageSize, 20);
+        Page<SalesOrder> result = salesOrderService.page(new Page<>(p, s),
+                new LambdaQueryWrapper<SalesOrder>()
+                        .eq(SalesOrder::getBuyerEmail, em)
+                        .eq(SalesOrder::getDeleted, false)
+                        .orderByDesc(SalesOrder::getCreatedAt));
+        return PageResult.of(result, o -> toFrontOrder(o, true));
     }
 
     private static String genOrderNo() {

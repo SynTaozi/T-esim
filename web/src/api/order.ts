@@ -77,7 +77,7 @@ export interface GetMyOrdersParams {
 
 export const orderApi = {
   createOrder: (data: CreateOrderData) => api.post('/orders', data),
-  guestLookup: (data: { email: string }) =>
+  guestLookup: (data: { email: string; page?: number; pageSize?: number }) =>
     api.post('/orders/guest-lookup', data),
   getOrders: () => api.get('/orders'),
   getOrdersPaginated: (page: number = 0, size: number = 5) =>
