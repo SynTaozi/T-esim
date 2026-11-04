@@ -14,6 +14,11 @@ spring:
       max-request-size: 25MB
 
 tesim:
+  mail:
+    # 开发时可在发码接口响应里带回验证码；生产务必 false
+    expose-dev-code: false
+    # 找不到对应 purpose 账号时，回退 GENERAL / 任意启用账号
+    fallback-account: true
   # 站点公网地址（支付跳转 / Webhook）。本地默认 localhost；prod 见 application-prod.yml
   site:
     # 前台：用户支付完成后浏览器回到这里

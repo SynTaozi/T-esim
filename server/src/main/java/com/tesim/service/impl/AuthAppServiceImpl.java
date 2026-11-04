@@ -14,9 +14,13 @@ import com.tesim.dto.auth.LoginRequest;
 import com.tesim.dto.auth.MemberVO;
 import com.tesim.dto.auth.RegisterRequest;
 import com.tesim.dto.auth.ResetPasswordRequest;
+import com.tesim.config.TesimMailProperties;
 import com.tesim.dto.auth.SendCodeVO;
 import com.tesim.dto.auth.UpdateProfileRequest;
 import com.tesim.entity.Member;
+import com.tesim.mail.MailBizTypes;
+import com.tesim.mail.MailMessage;
+import com.tesim.mail.MailPurposes;
 import com.tesim.security.JwtUtil;
 import com.tesim.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,26 +39,60 @@ public class AuthAppServiceImpl implements AuthAppService {
     private final VerificationCodeService codeService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final MailSendService mailSendService;
+    private final TesimMailProperties mailProperties;
 
     public SendCodeVO sendRegisterCode(String email) {
         if (!StringUtils.hasText(email)) {
             throw new BizException("邮箱不能为空");
         }
-        long exists = memberService.count(new LambdaQueryWrapper<Member>().eq(Member::getEmail, email.trim()));
+        String em = email.trim().toLowerCase();
+        long exists = memberService.count(new LambdaQueryWrapper<Member>().eq(Member::getEmail, em));
         if (exists > 0) {
             throw new BizException("邮箱已被注册");
         }
-        String code = codeService.send("REGISTER", email);
-        return new SendCodeVO(true, code);
+        String code = codeService.send("REGISTER", em);
+        mailSendService.sendAsync(MailMessage.builder()
+                .to(em)
+                .purpose(MailPurposes.GENERAL)
+                .bizType(MailBizTypes.AUTH_REGISTER_CODE)
+                .bizId(em)
+                .templateCode(MailBizTypes.AUTH_REGISTER_CODE)
+                .locale("zh")
+                .variables(Map.of(
+                        "code", code,
+                        "email", em,
+                        "expireMinutes", "10"
+                ))
+                .subject("【Tesim】注册验证码")
+                .htmlBody("<p>您的注册验证码是：<strong>" + code + "</strong>（10 分钟内有效）</p>")
+                .build());
+        return new SendCodeVO(true, mailProperties.isExposeDevCode() ? code : null);
     }
 
     public SendCodeVO sendResetCode(String email) {
-        Member m = memberService.getOne(new LambdaQueryWrapper<Member>().eq(Member::getEmail, email.trim()));
+        String em = email.trim().toLowerCase();
+        Member m = memberService.getOne(new LambdaQueryWrapper<Member>().eq(Member::getEmail, em));
         if (m == null) {
             throw new BizException("邮箱未注册");
         }
-        String code = codeService.send("RESET", email);
-        return new SendCodeVO(true, code);
+        String code = codeService.send("RESET", em);
+        mailSendService.sendAsync(MailMessage.builder()
+                .to(em)
+                .purpose(MailPurposes.GENERAL)
+                .bizType(MailBizTypes.AUTH_RESET_CODE)
+                .bizId(em)
+                .templateCode(MailBizTypes.AUTH_RESET_CODE)
+                .locale("zh")
+                .variables(Map.of(
+                        "code", code,
+                        "email", em,
+                        "expireMinutes", "10"
+                ))
+                .subject("【Tesim】重置密码验证码")
+                .htmlBody("<p>您的重置密码验证码是：<strong>" + code + "</strong>（10 分钟内有效）</p>")
+                .build());
+        return new SendCodeVO(true, mailProperties.isExposeDevCode() ? code : null);
     }
 
     @Transactional

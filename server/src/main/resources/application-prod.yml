@@ -12,6 +12,9 @@ spring:
       password: '@Syntest111'
 
 tesim:
+  mail:
+    expose-dev-code: false
+    fallback-account: true
   # 当前联调机：前台 :8322，后端 API :8088/api（可用环境变量覆盖）
   site:
     public-web-base: ${TESIM_PUBLIC_WEB_BASE:http://158.247.212.117:8322}

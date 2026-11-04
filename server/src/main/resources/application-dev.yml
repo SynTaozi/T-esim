@@ -1,27 +1,30 @@
-spring:
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3306/t_esim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: "123456"
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  data:
-    redis:
-      host: 103.106.189.67
-      port: 9876
-      database: 8
-      password: '@Syntest111'
-
-tesim:
-  site:
-    public-web-base: http://localhost:5173
-    public-api-base: http://localhost:8088/api
-  payment:
-    usdt:
-      address: TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv
-      rate: 1
-    stripe:
-      currency: usd
-
-logging:
-  level:
-    com.tesim.mapper: debug
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/t_esim?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: "123456"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: 103.106.189.67
+      port: 9876
+      database: 8
+      password: '@Syntest111'
+
+tesim:
+  mail:
+    expose-dev-code: true
+    fallback-account: true
+  site:
+    public-web-base: http://localhost:5173
+    public-api-base: http://localhost:8088/api
+  payment:
+    usdt:
+      address: TNnJePpZySFmLyd3U8WmHKbvymU6zc3Ngv
+      rate: 1
+    stripe:
+      currency: usd
+
+logging:
+  level:
+    com.tesim.mapper: debug

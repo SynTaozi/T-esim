@@ -34,6 +34,7 @@ public class AdminTicketAppServiceImpl implements AdminTicketAppService {
     private final TicketService ticketService;
     private final TicketMessageService ticketMessageService;
     private final MemberService memberService;
+    private final BusinessMailFacade businessMailFacade;
 
     public PageResult<TicketVO> page(Integer page, Integer size, String status) {
         int p = page == null || page < 0 ? 0 : page;
@@ -76,6 +77,11 @@ public class AdminTicketAppServiceImpl implements AdminTicketAppService {
         ticket.setStatus("OPEN");
         ticket.setUpdatedAt(LocalDateTime.now());
         ticketService.updateById(ticket);
+
+        if (ticket.getMemberId() != null) {
+            Member owner = memberService.getById(ticket.getMemberId());
+            businessMailFacade.sendTicketReply(ticket, owner, req.getReply().trim());
+        }
         return toVO(ticket, true);
     }
 

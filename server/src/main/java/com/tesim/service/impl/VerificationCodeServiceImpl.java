@@ -25,7 +25,6 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public String send(String scene, String email) {
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
         redis.opsForValue().set(key(scene, email), code, Duration.ofMinutes(10));
-        // 开发期直接返回码；生产改为发邮件后不返回
         return code;
     }
 

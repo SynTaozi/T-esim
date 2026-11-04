@@ -4,6 +4,7 @@ import com.tesim.common.BizException;
 import com.tesim.common.PageResult;
 import com.tesim.dto.admin.AdminEmailAccountRequest;
 import com.tesim.dto.admin.AdminEmailAccountVO;
+import com.tesim.dto.admin.AdminEmailSendLogVO;
 import com.tesim.dto.admin.AdminEmailTemplateRequest;
 import com.tesim.dto.admin.AdminEmailTemplateVO;
 import com.tesim.entity.I18nSysEmailTemplate;
@@ -80,5 +81,6 @@ public interface AdminEmailAppService {
 
     Map<String, Object> previewTemplate(Long id);
 
-
+    PageResult<AdminEmailSendLogVO> pageSendLogs(String status, String bizType, String toEmail,
+                                                 Integer page, Integer size);
 }

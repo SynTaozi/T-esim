@@ -38,6 +38,7 @@ public class AdminOrderAppServiceImpl implements AdminOrderAppService {
     private final OrderAppService orderAppService;
     private final OrderFulfillmentAppService orderFulfillmentAppService;
     private final OrderPaymentExpireService orderPaymentExpireService;
+    private final BusinessMailFacade businessMailFacade;
 
     public PageResult<OrderVO> page(String status, Integer page, Integer size, String orderNo,
                                     String email, String thirdPartyOrderNo, Boolean excludeCancelled) {
@@ -130,15 +131,29 @@ public class AdminOrderAppServiceImpl implements AdminOrderAppService {
         if (req.getShippingRemark() != null) {
             ship.setShippingRemark(req.getShippingRemark());
         }
+        boolean newlyShipped = false;
         if (StringUtils.hasText(ship.getTrackingNo()) && !"SHIPPED".equals(ship.getShipStatus())) {
             ship.setShipStatus("SHIPPED");
             ship.setShippedAt(LocalDateTime.now());
+            newlyShipped = true;
             if ("PAID".equals(order.getStatus()) || "PROCESSING".equals(order.getStatus())) {
                 order.setStatus("SHIPPED");
                 salesOrderService.updateById(order);
             }
         }
         shipmentService.updateById(ship);
+        // 仅在首次变为已发货时自动发信；重复通知走 resendNotification
+        if (newlyShipped) {
+            SalesOrderEsim esim = esimService.getOne(new LambdaQueryWrapper<SalesOrderEsim>()
+                    .eq(SalesOrderEsim::getOrderId, order.getId()).last("LIMIT 1"));
+            businessMailFacade.sendOrderShipping(order, ship, esim);
+            ship.setEmailSent(true);
+            shipmentService.updateById(ship);
+            if (esim != null) {
+                esim.setEmailSent(true);
+                esimService.updateById(esim);
+            }
+        }
         return orderAppService.toFrontOrder(order, true);
     }
 
@@ -147,19 +162,20 @@ public class AdminOrderAppServiceImpl implements AdminOrderAppService {
         SalesOrder order = require(id);
         SalesOrderEsim esim = esimService.getOne(new LambdaQueryWrapper<SalesOrderEsim>()
                 .eq(SalesOrderEsim::getOrderId, order.getId()).last("LIMIT 1"));
+        SalesOrderShipment ship = shipmentService.getOne(new LambdaQueryWrapper<SalesOrderShipment>()
+                .eq(SalesOrderShipment::getOrderId, order.getId()).last("LIMIT 1"));
+        businessMailFacade.sendOrderShipping(order, ship, esim);
         if (esim != null) {
             esim.setEmailSent(true);
             esimService.updateById(esim);
         }
-        SalesOrderShipment ship = shipmentService.getOne(new LambdaQueryWrapper<SalesOrderShipment>()
-                .eq(SalesOrderShipment::getOrderId, order.getId()).last("LIMIT 1"));
         if (ship != null) {
             ship.setEmailSent(true);
             shipmentService.updateById(ship);
         }
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
-        result.put("message", "已标记通知已发送（邮件发送通道未接入时仅更新状态）");
+        result.put("message", "发货通知已加入发送队列");
         result.put("orderNo", order.getOrderNo());
         return result;
     }
@@ -170,13 +186,15 @@ public class AdminOrderAppServiceImpl implements AdminOrderAppService {
             throw new BizException("通知内容不能为空");
         }
         SalesOrder order = require(id);
+        String subject = StringUtils.hasText(req.getSubject()) ? req.getSubject() : "订单通知";
         SalesOrderNotice notice = new SalesOrderNotice();
         notice.setOrderId(order.getId());
         notice.setNoticeType("CUSTOMER");
-        notice.setSubject(StringUtils.hasText(req.getSubject()) ? req.getSubject() : "订单通知");
+        notice.setSubject(subject);
         notice.setContent(req.getContent().trim());
         notice.setSentAt(LocalDateTime.now());
         noticeService.save(notice);
+        businessMailFacade.sendOrderCustomerNotice(order, subject, req.getContent().trim());
         return orderAppService.toFrontOrder(order, true);
     }
 

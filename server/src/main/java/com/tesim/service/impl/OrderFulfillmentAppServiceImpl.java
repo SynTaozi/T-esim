@@ -8,6 +8,7 @@ import com.tesim.entity.SalesOrder;
 import com.tesim.entity.SalesOrderEsim;
 import com.tesim.entity.SalesOrderNotice;
 import com.tesim.entity.SalesOrderShipment;
+import com.tesim.service.BusinessMailFacade;
 import com.tesim.service.FulfillmentTaskService;
 import com.tesim.service.OrderAppService;
 import com.tesim.service.OrderFulfillmentAppService;
@@ -34,6 +35,7 @@ public class OrderFulfillmentAppServiceImpl implements OrderFulfillmentAppServic
     private final SalesOrderNoticeService noticeService;
     private final FulfillmentTaskService fulfillmentTaskService;
     private final OrderAppService orderAppService;
+    private final BusinessMailFacade businessMailFacade;
 
     @Override
     @Transactional
@@ -118,9 +120,19 @@ public class OrderFulfillmentAppServiceImpl implements OrderFulfillmentAppServic
         notice.setSentAt(now);
         noticeService.save(notice);
 
+        SalesOrderEsim esimForMail = esimService.getOne(new LambdaQueryWrapper<SalesOrderEsim>()
+                .eq(SalesOrderEsim::getOrderId, orderId).last("LIMIT 1"));
+        businessMailFacade.sendOrderShipping(order, ship, esimForMail);
+        ship.setEmailSent(true);
+        shipmentService.updateById(ship);
+        if (esimForMail != null) {
+            esimForMail.setEmailSent(true);
+            esimService.updateById(esimForMail);
+        }
+
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
-        result.put("message", "已手动发货并标记为已发货");
+        result.put("message", "已手动发货并标记为已发货，通知邮件已加入发送队列");
         result.put("orderNo", order.getOrderNo());
         result.put("status", order.getStatus());
         return result;

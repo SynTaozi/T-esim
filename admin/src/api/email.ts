@@ -22,3 +22,8 @@ export const emailTemplateApi = {
     api.put(`/admin/email-templates/${id}/enabled`, { enabled }) as Promise<ApiResult<any>>,
   preview: (id: number) => api.get(`/admin/email-templates/${id}/preview`) as Promise<ApiResult<any>>
 }
+
+export const emailSendLogApi = {
+  page: (params?: { status?: string; bizType?: string; toEmail?: string; page?: number; size?: number }) =>
+    api.get('/admin/email-send-logs', { params }) as Promise<ApiResult<PageResult<any>>>
+}

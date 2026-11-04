@@ -7,20 +7,26 @@ import com.tesim.service.AdminEmailAppService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tesim.common.BizException;
 import com.tesim.common.PageResult;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tesim.dto.admin.AdminEmailAccountRequest;
 import com.tesim.dto.admin.AdminEmailAccountVO;
+import com.tesim.dto.admin.AdminEmailSendLogVO;
 import com.tesim.dto.admin.AdminEmailTemplateRequest;
 import com.tesim.dto.admin.AdminEmailTemplateVO;
 import com.tesim.entity.I18nSysEmailTemplate;
-import com.tesim.entity.SalesOrderNotice;
 import com.tesim.entity.SysEmailAccount;
+import com.tesim.entity.SysEmailSendLog;
 import com.tesim.entity.SysEmailTemplate;
+import com.tesim.mail.MailBizTypes;
+import com.tesim.mail.MailMessage;
+import com.tesim.mail.MailPurposes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +35,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminEmailAppServiceImpl implements AdminEmailAppService {
 
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final SysEmailAccountService emailAccountService;
     private final SysEmailTemplateService emailTemplateService;
     private final I18nSysEmailTemplateService i18nEmailTemplateService;
-    private final SalesOrderNoticeService noticeService;
+    private final SysEmailSendLogService sendLogService;
+    private final MailSendService mailSendService;
 
     public List<AdminEmailAccountVO> listAccounts() {
         return emailAccountService.list(new LambdaQueryWrapper<SysEmailAccount>()
@@ -75,11 +84,24 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
                 || !StringUtils.hasText(a.getUsername())) {
             throw new BizException("邮箱账户配置不完整，无法测试");
         }
+        if (!Boolean.TRUE.equals(a.getEnabled())) {
+            throw new BizException("请先启用该邮箱账户");
+        }
+        Long logId = mailSendService.sendSync(MailMessage.builder()
+                .accountId(a.getId())
+                .purpose(StringUtils.hasText(a.getPurpose()) ? a.getPurpose() : MailPurposes.GENERAL)
+                .bizType(MailBizTypes.ADMIN_TEST)
+                .bizId(String.valueOf(a.getId()))
+                .to(a.getEmailAddress())
+                .subject("【Tesim】SMTP 测试邮件")
+                .htmlBody("<p>这是一封来自 Tesim 后台的 SMTP 测试邮件。</p><p>账户：" + a.getName() + "</p>")
+                .build());
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
-        result.put("message", "配置校验通过（未实际发送测试邮件）");
+        result.put("message", "测试邮件已发送到 " + a.getEmailAddress());
         result.put("accountId", a.getId());
         result.put("emailAddress", a.getEmailAddress());
+        result.put("logId", logId);
         return result;
     }
 
@@ -100,7 +122,6 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
         return result;
     }
 
-    @Transactional
     public Map<String, Object> sendEmail(Long accountId, Map<String, Object> body) {
         SysEmailAccount a = requireAccount(accountId);
         String to = body == null ? null : str(body.get("to"));
@@ -109,19 +130,66 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
         if (!StringUtils.hasText(to) || !StringUtils.hasText(content)) {
             throw new BizException("收件人和正文不能为空");
         }
-        SalesOrderNotice notice = new SalesOrderNotice();
-        notice.setOrderId(0L);
-        notice.setNoticeType("ADMIN_EMAIL");
-        notice.setSubject(StringUtils.hasText(subject) ? subject : "管理员邮件");
-        notice.setContent("from=" + a.getEmailAddress() + "; to=" + to + "; body=" + content);
-        notice.setSentAt(LocalDateTime.now());
-        noticeService.save(notice);
-
+        if (!Boolean.TRUE.equals(a.getEnabled())) {
+            throw new BizException("请先启用该邮箱账户");
+        }
+        Long logId = mailSendService.sendAsync(MailMessage.builder()
+                .accountId(a.getId())
+                .purpose(StringUtils.hasText(a.getPurpose()) ? a.getPurpose() : MailPurposes.GENERAL)
+                .bizType(MailBizTypes.ADMIN_MANUAL)
+                .bizId(String.valueOf(a.getId()))
+                .to(to.trim())
+                .subject(StringUtils.hasText(subject) ? subject.trim() : "管理员邮件")
+                .htmlBody(content.contains("<") ? content : "<pre style=\"white-space:pre-wrap;font-family:inherit\">"
+                        + content.replace("&", "&amp;").replace("<", "&lt;") + "</pre>")
+                .build());
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
-        result.put("message", "已记录发送通知（邮件通道未接入）");
-        result.put("noticeId", notice.getId());
+        result.put("message", "邮件已加入发送队列");
+        result.put("logId", logId);
         return result;
+    }
+
+    public PageResult<AdminEmailSendLogVO> pageSendLogs(String status, String bizType, String toEmail,
+                                                        Integer page, Integer size) {
+        int p = page == null || page < 0 ? 0 : page;
+        int s = size == null || size < 1 ? 20 : size;
+        LambdaQueryWrapper<SysEmailSendLog> qw = new LambdaQueryWrapper<SysEmailSendLog>()
+                .orderByDesc(SysEmailSendLog::getId);
+        if (StringUtils.hasText(status)) {
+            qw.eq(SysEmailSendLog::getStatus, status.trim().toUpperCase());
+        }
+        if (StringUtils.hasText(bizType)) {
+            qw.eq(SysEmailSendLog::getBizType, bizType.trim());
+        }
+        if (StringUtils.hasText(toEmail)) {
+            qw.like(SysEmailSendLog::getToEmail, toEmail.trim());
+        }
+        Page<SysEmailSendLog> result = sendLogService.page(new Page<>(p + 1L, s), qw);
+        List<AdminEmailSendLogVO> content = result.getRecords().stream().map(this::toSendLogVO).toList();
+        return PageResult.of(content, result.getTotal(), p, s);
+    }
+
+    private AdminEmailSendLogVO toSendLogVO(SysEmailSendLog row) {
+        return AdminEmailSendLogVO.builder()
+                .id(row.getId())
+                .accountId(row.getAccountId())
+                .purpose(row.getPurpose())
+                .bizType(row.getBizType())
+                .bizId(row.getBizId())
+                .toEmail(row.getToEmail())
+                .subject(row.getSubject())
+                .body(row.getBody())
+                .status(row.getStatus())
+                .errorMessage(row.getErrorMessage())
+                .attemptCount(row.getAttemptCount())
+                .sentAt(format(row.getSentAt()))
+                .createdAt(format(row.getCreatedAt()))
+                .build();
+    }
+
+    private static String format(LocalDateTime t) {
+        return t == null ? null : FMT.format(t);
     }
 
     public Map<String, Object> markRead(Long accountId, String messageId) {

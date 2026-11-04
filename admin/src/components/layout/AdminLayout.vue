@@ -61,6 +61,7 @@
             </template>
             <el-menu-item index="/email-accounts">邮件账户</el-menu-item>
             <el-menu-item index="/email-templates">邮件模板</el-menu-item>
+            <el-menu-item index="/email-send-logs">发送日志</el-menu-item>
           </el-sub-menu>
 
           <div v-show="!collapsed" class="nav-group">系统</div>
@@ -135,6 +136,7 @@ const pageTitleMap: Record<string, string> = {
   '/emails': '邮件收件箱',
   '/email-accounts': '邮件账户管理',
   '/email-templates': '邮件模板管理',
+  '/email-send-logs': '邮件发送日志',
   '/card-platform': '发卡平台对接',
   '/card-platform/bulk-mapping': '批量商品映射',
   '/dingtalk': '钉钉通知',
