@@ -257,35 +257,32 @@
           </div>
         </div>
 
-        <!-- Delivery: eSIM vs physical -->
+        <!-- SIM type tabs：不支持 eSIM 时仍展示，但 eSIM 禁用 -->
         <div class="order-section">
           <div class="section-title">
             {{ $t('plans.deliveryTitle') }}
             <span class="section-required">*</span>
           </div>
-          <div class="delivery-options">
-            <label
-              v-if="!isPhysicalProduct"
-              class="delivery-option"
-              :class="{ selected: deliveryMode === 'esim' }"
-            >
-              <input type="radio" value="esim" v-model="deliveryMode" />
-              <div class="delivery-body">
-                <span class="delivery-name">{{ $t('plans.deliveryEsim') }}</span>
-                <span class="delivery-desc">{{ $t('plans.deliveryEsimDesc') }}</span>
-              </div>
-            </label>
-            <label
-              class="delivery-option"
-              :class="{ selected: deliveryMode === 'physical' }"
-            >
-              <input type="radio" value="physical" v-model="deliveryMode" />
-              <div class="delivery-body">
-                <span class="delivery-name">{{ $t('plans.deliveryPhysical') }}</span>
-                <span class="delivery-desc">{{ $t('plans.deliveryPhysicalDesc') }}</span>
-              </div>
-            </label>
+          <div class="sim-tabs" role="tablist">
+            <button
+              type="button"
+              class="sim-tab"
+              :class="{ active: deliveryMode === 'esim', disabled: isPhysicalProduct }"
+              :disabled="isPhysicalProduct"
+              @click="!isPhysicalProduct && (deliveryMode = 'esim')"
+            >{{ $t('plans.deliveryEsim') }}</button>
+            <button
+              type="button"
+              class="sim-tab"
+              :class="{ active: deliveryMode === 'physical' }"
+              @click="deliveryMode = 'physical'"
+            >{{ $t('plans.deliveryPhysical') }}</button>
           </div>
+          <p class="sim-hint">
+            {{ isPhysicalProduct
+              ? $t('plans.physicalOnlyHint')
+              : (deliveryMode === 'esim' ? $t('plans.deliveryEsimDesc') : $t('plans.deliveryPhysicalDesc')) }}
+          </p>
 
           <template v-if="deliveryMode === 'physical'">
             <div class="section-title" style="margin-top: 14px;">
@@ -403,18 +400,19 @@
           />
         </div>
 
-        <!-- Order Summary -->
-        <div class="order-section order-summary">
+        <!-- Order Summary: only when physical device selected -->
+        <div v-if="hasDevice" class="order-section order-summary">
+          <div class="section-title">{{ $t('phoneNumbers.orderSummary') }}</div>
           <div class="summary-row">
             <span>{{ $t('checkout.packageFee') }}</span>
             <span v-if="selectedTier">${{ selectedTier.totalPrice }} USD <small style="color:#999;font-size:11px;">（{{ selectedTier.months }}个月 × ${{ selectedTier.pricePerMonth }}/月）</small></span>
             <span v-else>${{ selectedProduct.price }} USD</span>
           </div>
-          <div class="summary-row" v-if="hasDevice">
+          <div class="summary-row">
             <span>{{ $t('phoneNumbers.deviceFee') }}</span>
             <span>${{ deviceTotal.toFixed(2) }} USD</span>
           </div>
-          <div class="summary-row shipping-row" v-if="hasDevice">
+          <div class="summary-row shipping-row">
             <span>{{ $t('phoneNumbers.expressFee') }}</span>
             <span>{{ siteConfig.formatShippingFee() }}</span>
           </div>
@@ -422,6 +420,9 @@
             <span>{{ $t('checkout.couponDiscount') }}</span>
             <span class="coupon-discount">-${{ appliedDiscount.toFixed(2) }} USD</span>
           </div>
+        </div>
+
+        <div class="order-section">
           <div class="coupon-box">
             <div class="coupon-label">{{ $t('checkout.couponCode') }}</div>
             <div class="coupon-row">
@@ -703,10 +704,17 @@ const deviceTotal = computed(() => {
   }, 0)
 })
 
-const isPhysicalProduct = computed(() => !!(selectedProduct.value as any)?.isPhysicalCard)
+const isPhysicalProduct = computed(() => {
+  const p = selectedProduct.value as any
+  return !!(p?.isPhysicalCard === 1 || p?.isPhysicalCard === true || p?.isPhysical)
+})
 const hasDevice = computed(() => deliveryMode.value === 'physical' && selectedDevices.value.length > 0)
 
 watch(deliveryMode, (mode) => {
+  if (isPhysicalProduct.value && mode === 'esim') {
+    deliveryMode.value = 'physical'
+    return
+  }
   if (mode === 'esim') selectedDevices.value = []
 })
 
@@ -2188,24 +2196,41 @@ a.product-card {
 .radio-title { display: block; font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
 .radio-desc { display: block; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 
-.delivery-options { display: flex; flex-direction: column; gap: 8px; }
-.delivery-option {
-  cursor: pointer;
-  display: block;
-  border: 1px solid var(--border-subtle);
+.sim-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
   border-radius: 10px;
-  padding: 12px 14px;
-  background: var(--bg-card);
-  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-muted, #f1f5f9);
 }
-.delivery-option input { display: none; }
-.delivery-option.selected {
-  border-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+.sim-tab {
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-muted);
+  cursor: pointer;
 }
-.delivery-body { display: flex; flex-direction: column; gap: 2px; }
-.delivery-name { font-size: 14px; font-weight: 650; color: var(--text-primary); }
-.delivery-desc { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+.sim-tab.active {
+  background: var(--bg-card, #fff);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.sim-tab.disabled,
+.sim-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  color: var(--text-muted);
+}
+.sim-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
 .device-options { display: flex; flex-direction: column; gap: 6px; }
 .device-option {
   display: flex; align-items: stretch; padding: 10px 12px;

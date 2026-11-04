@@ -117,36 +117,38 @@
                 </div>
               </section>
 
-              <!-- Delivery: eSIM vs physical — one clear choice -->
+              <!-- SIM type tabs：不支持 eSIM 时仍展示，但 eSIM 禁用 -->
               <section class="pd-block">
                 <div class="pd-block-head">
                   <span class="pd-step">{{ productPricingTiers.length > 0 ? 2 : 1 }}</span>
                   <span>{{ $t('plans.deliveryTitle') }}</span>
                   <span class="pd-required">*</span>
                 </div>
-                <div class="pd-delivery">
-                  <label
-                    v-if="!isPhysicalProduct"
-                    class="pd-delivery-opt"
-                    :class="{ selected: deliveryMode === 'esim' }"
-                  >
-                    <input type="radio" value="esim" v-model="deliveryMode" />
-                    <div class="pd-delivery-body">
-                      <span class="pd-delivery-name">{{ $t('plans.deliveryEsim') }}</span>
-                      <span class="pd-delivery-desc">{{ $t('plans.deliveryEsimDesc') }}</span>
-                    </div>
-                  </label>
-                  <label
-                    class="pd-delivery-opt"
-                    :class="{ selected: deliveryMode === 'physical' }"
-                  >
-                    <input type="radio" value="physical" v-model="deliveryMode" />
-                    <div class="pd-delivery-body">
-                      <span class="pd-delivery-name">{{ $t('plans.deliveryPhysical') }}</span>
-                      <span class="pd-delivery-desc">{{ $t('plans.deliveryPhysicalDesc') }}</span>
-                    </div>
-                  </label>
+                <div class="pd-sim-tabs" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="pd-sim-tab"
+                    :class="{ active: deliveryMode === 'esim', disabled: isPhysicalProduct }"
+                    :aria-selected="deliveryMode === 'esim'"
+                    :aria-disabled="isPhysicalProduct"
+                    :disabled="isPhysicalProduct"
+                    @click="!isPhysicalProduct && (deliveryMode = 'esim')"
+                  >{{ $t('plans.deliveryEsim') }}</button>
+                  <button
+                    type="button"
+                    role="tab"
+                    class="pd-sim-tab"
+                    :class="{ active: deliveryMode === 'physical' }"
+                    :aria-selected="deliveryMode === 'physical'"
+                    @click="deliveryMode = 'physical'"
+                  >{{ $t('plans.deliveryPhysical') }}</button>
                 </div>
+                <p class="pd-sim-hint">
+                  {{ isPhysicalProduct
+                    ? $t('plans.physicalOnlyHint')
+                    : (deliveryMode === 'esim' ? $t('plans.deliveryEsimDesc') : $t('plans.deliveryPhysicalDesc')) }}
+                </p>
 
                 <template v-if="deliveryMode === 'physical'">
                   <div class="pd-subhead">{{ $t('plans.pickDevice') }} <span class="pd-required">*</span></div>
@@ -230,8 +232,8 @@
                 />
               </section>
 
-              <!-- Summary -->
-              <section class="pd-block pd-block--summary">
+              <!-- Summary: only when physical device selected -->
+              <section v-if="hasDevice" class="pd-block pd-block--summary">
                 <div class="pd-block-head">
                   <span>{{ $t('phoneNumbers.orderSummary') }}</span>
                 </div>
@@ -244,11 +246,11 @@
                     </span>
                     <span v-else>${{ product.price }}</span>
                   </div>
-                  <div class="pd-summary-row" v-if="hasDevice">
+                  <div class="pd-summary-row">
                     <span>{{ $t('phoneNumbers.deviceFee') }}</span>
                     <span>${{ deviceTotal.toFixed(2) }}</span>
                   </div>
-                  <div class="pd-summary-row" v-if="hasDevice">
+                  <div class="pd-summary-row">
                     <span>{{ $t('phoneNumbers.expressFee') }}</span>
                     <span>{{ siteConfig.formatShippingFee() }}</span>
                   </div>
@@ -257,6 +259,9 @@
                     <span class="pd-discount">-${{ appliedDiscount.toFixed(2) }}</span>
                   </div>
                 </div>
+              </section>
+
+              <section class="pd-block pd-block--tight">
                 <div class="pd-coupon">
                   <div class="pd-coupon-row">
                     <el-input
@@ -488,10 +493,18 @@ const deviceTotal = computed(() => {
   }, 0)
 })
 
-const isPhysicalProduct = computed(() => !!(product.value as any)?.isPhysicalCard)
+const isPhysicalProduct = computed(() => {
+  const p = product.value as any
+  return !!(p?.isPhysicalCard === 1 || p?.isPhysicalCard === true || p?.isPhysical)
+})
 const hasDevice = computed(() => deliveryMode.value === 'physical' && selectedDevices.value.length > 0)
 
 watch(deliveryMode, (mode) => {
+  // 实体卡商品禁止切回 eSIM
+  if (isPhysicalProduct.value && mode === 'esim') {
+    deliveryMode.value = 'physical'
+    return
+  }
   if (mode === 'esim') {
     selectedDevices.value = []
   }
@@ -1143,22 +1156,42 @@ onMounted(async () => {
 }
 
 /* Devices */
-.pd-delivery { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
-.pd-delivery-opt {
-  cursor: pointer; display: block;
-  border: 1px solid var(--border-subtle, #e5e7eb);
-  border-radius: 10px; padding: 12px 14px;
-  background: var(--bg-card, #fff);
-  transition: border-color 0.15s, background 0.15s;
+.pd-sim-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--bg-muted, #f1f5f9);
 }
-.pd-delivery-opt input { display: none; }
-.pd-delivery-opt.selected {
-  border-color: var(--accent-primary, #0059b5);
-  background: color-mix(in srgb, var(--accent-primary, #0059b5) 6%, transparent);
+.pd-sim-tab {
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
-.pd-delivery-body { display: flex; flex-direction: column; gap: 2px; }
-.pd-delivery-name { font-size: 14px; font-weight: 650; color: var(--text-primary, #111); }
-.pd-delivery-desc { font-size: 12px; color: var(--text-muted, #717785); line-height: 1.45; }
+.pd-sim-tab.active {
+  background: #fff;
+  color: var(--text-primary, #0f172a);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.pd-sim-tab.disabled,
+.pd-sim-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  color: var(--text-muted, #94a3b8);
+}
+.pd-sim-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted, #717785);
+}
 .pd-subhead {
   margin: 12px 0 8px;
   font-size: 13px; font-weight: 600;

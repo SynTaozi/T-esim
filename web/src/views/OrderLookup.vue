@@ -29,42 +29,79 @@
         <div v-if="!orders.length" class="empty-card">
           {{ $t('orderLookup.notFound') }}
         </div>
+        <div v-else class="result-meta">
+          {{ $t('orderLookup.resultCount', { count: orders.length }) }}
+        </div>
 
-        <article v-for="order in orders" :key="order.id || order.orderNo" class="result-card">
-          <header class="result-head">
-            <div class="result-head-main">
-              <span class="order-no">{{ order.orderNo }}</span>
-              <span class="status-pill" :class="'s-' + statusKey(order)">
-                {{ statusLabel(order) }}
-              </span>
+        <article
+          v-for="order in pagedOrders"
+          :key="order.id || order.orderNo"
+          class="m2-card"
+        >
+          <div class="m2-top">
+            <div class="m2-top-left">
+              {{ $t('orderLookup.orderNo') }} {{ order.orderNo }}
+              <span v-if="order.createdAt" class="dot">·</span>
+              <span v-if="order.createdAt">{{ formatShortDate(order.createdAt) }}</span>
             </div>
-            <div class="result-amount">
-              ${{ Number(order.finalAmount ?? order.payableAmount ?? order.totalAmount ?? 0).toFixed(2) }}
+            <div class="m2-status" :class="'s-' + statusKey(order)">
+              {{ statusLabel(order) }}
+            </div>
+          </div>
+
+          <div class="m2-mid">
+            <div class="m2-pic" aria-hidden="true">{{ productInitial(order) }}</div>
+            <div class="m2-info">
+              <div class="m2-title">{{ primaryItemName(order) }}</div>
+              <div class="m2-sku">
+                <span>{{ $t('orderLookup.paymentMethod') }}：{{ paymentLabel(order.paymentMethod) }}</span>
+                <span v-if="order.trackingNumber">
+                  · {{ $t('orderLookup.trackingNo') }} {{ order.trackingNumber }}
+                </span>
+                <span v-if="extraItemCount(order) > 0">
+                  · {{ $t('orderLookup.moreItems', { n: extraItemCount(order) }) }}
+                </span>
+              </div>
+            </div>
+            <div class="m2-price">
+              ${{ itemPrice(order).toFixed(2) }}
+            </div>
+          </div>
+
+          <div class="m2-bot">
+            <div class="m2-sum">
+              {{ canContinuePay(order) ? $t('orderLookup.amountDue') : $t('orderLookup.paidAmount') }}
+              <b>${{ orderAmount(order).toFixed(2) }}</b>
               <small>{{ order.currency || 'USD' }}</small>
             </div>
-          </header>
-
-          <div class="meta-grid">
-            <div class="meta-item">
-              <span class="meta-label">{{ $t('orderLookup.createdAt') }}</span>
-              <span class="meta-value">{{ order.createdAt || '—' }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">{{ $t('orderLookup.paymentMethod') }}</span>
-              <span class="meta-value">{{ paymentLabel(order.paymentMethod) }}</span>
+            <div class="m2-btns">
+              <button
+                v-if="hasShipping(order)"
+                type="button"
+                class="m2-btn"
+                @click="togglePanel(order, 'ship')"
+              >
+                {{ isPanel(order, 'ship') ? $t('orderLookup.collapse') : $t('orderLookup.viewShipping') }}
+              </button>
+              <button
+                type="button"
+                class="m2-btn"
+                @click="togglePanel(order, 'detail')"
+              >
+                {{ isPanel(order, 'detail') ? $t('orderLookup.collapse') : $t('orderLookup.orderDetails') }}
+              </button>
+              <button
+                v-if="canContinuePay(order)"
+                type="button"
+                class="m2-btn primary"
+                @click="continuePay(order)"
+              >
+                {{ $t('orderLookup.continuePay') }}
+              </button>
             </div>
           </div>
 
-          <div v-if="order.items?.length" class="items-block">
-            <div class="block-title">{{ $t('orderLookup.items') }}</div>
-            <div v-for="item in order.items" :key="item.id" class="item-row">
-              <span class="item-name">{{ itemName(item) }}</span>
-              <span class="item-price">${{ Number(item.subtotal ?? item.price ?? 0).toFixed(2) }}</span>
-            </div>
-          </div>
-
-          <div v-if="hasShipping(order)" class="shipping-block">
-            <div class="block-title">{{ $t('orderLookup.shippingInfo') }}</div>
+          <div v-if="isPanel(order, 'ship') && hasShipping(order)" class="m2-panel">
             <div v-if="order.shippingCarrier" class="ship-row">
               <span>{{ $t('orderLookup.carrier') }}</span>
               <strong>{{ order.shippingCarrier }}</strong>
@@ -78,7 +115,7 @@
               <strong>{{ order.shippingAddress }}</strong>
             </div>
             <div v-if="order.trackingQrCode" class="qr-block">
-              <div class="block-title">{{ $t('orderLookup.esimOrQr') }}</div>
+              <div class="panel-title">{{ $t('orderLookup.esimOrQr') }}</div>
               <code class="qr-code">{{ order.trackingQrCode }}</code>
               <el-button size="small" @click="copyText(order.trackingQrCode)">
                 {{ $t('orderLookup.copy') }}
@@ -86,20 +123,64 @@
             </div>
           </div>
 
-          <div v-if="order.customerNoticeContent" class="notice-block">
-            <div class="block-title">{{ $t('orderLookup.notice') }}</div>
-            <p>{{ order.customerNoticeContent }}</p>
-          </div>
+          <div v-if="isPanel(order, 'detail')" class="m2-panel">
+            <div class="panel-title">{{ $t('orderLookup.items') }}</div>
+            <div v-for="item in order.items || []" :key="item.id" class="item-row">
+              <span class="item-name">{{ itemName(item) }}</span>
+              <span class="item-price">${{ Number(item.subtotal ?? item.price ?? 0).toFixed(2) }}</span>
+            </div>
+            <div v-if="!order.items?.length" class="muted">—</div>
 
-          <el-button
-            v-if="canContinuePay(order)"
-            type="primary"
-            class="pay-btn"
-            @click="continuePay(order)"
-          >
-            {{ $t('orderLookup.continuePay') }}
-          </el-button>
+            <div class="meta-grid">
+              <div class="meta-item">
+                <span class="meta-label">{{ $t('orderLookup.createdAt') }}</span>
+                <span class="meta-value">{{ order.createdAt || '—' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">{{ $t('orderLookup.paymentMethod') }}</span>
+                <span class="meta-value">{{ paymentLabel(order.paymentMethod) }}</span>
+              </div>
+            </div>
+
+            <template v-if="hasShipping(order)">
+              <div class="panel-title">{{ $t('orderLookup.shippingInfo') }}</div>
+              <div v-if="order.shippingCarrier" class="ship-row">
+                <span>{{ $t('orderLookup.carrier') }}</span>
+                <strong>{{ order.shippingCarrier }}</strong>
+              </div>
+              <div v-if="order.trackingNumber" class="ship-row">
+                <span>{{ $t('orderLookup.trackingNo') }}</span>
+                <strong class="mono">{{ order.trackingNumber }}</strong>
+              </div>
+              <div v-if="order.shippingAddress" class="ship-row ship-row--top">
+                <span>{{ $t('orderLookup.shippingAddress') }}</span>
+                <strong>{{ order.shippingAddress }}</strong>
+              </div>
+              <div v-if="order.trackingQrCode" class="qr-block">
+                <div class="panel-title">{{ $t('orderLookup.esimOrQr') }}</div>
+                <code class="qr-code">{{ order.trackingQrCode }}</code>
+                <el-button size="small" @click="copyText(order.trackingQrCode)">
+                  {{ $t('orderLookup.copy') }}
+                </el-button>
+              </div>
+            </template>
+
+            <div v-if="order.customerNoticeContent" class="notice-block">
+              <div class="panel-title">{{ $t('orderLookup.notice') }}</div>
+              <p>{{ order.customerNoticeContent }}</p>
+            </div>
+          </div>
         </article>
+
+        <div v-if="orders.length > pageSize" class="pager">
+          <el-pagination
+            v-model:current-page="page"
+            :page-size="pageSize"
+            :total="orders.length"
+            layout="total, prev, pager, next"
+            background
+          />
+        </div>
       </section>
     </main>
     <SiteFooter />
@@ -107,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -124,6 +205,28 @@ const email = ref('')
 const loading = ref(false)
 const searched = ref(false)
 const orders = ref<any[]>([])
+const page = ref(1)
+const pageSize = 5
+/** orderKey -> 'ship' | 'detail' | null */
+const openPanels = ref<Record<string, 'ship' | 'detail' | null>>({})
+
+const pagedOrders = computed(() => {
+  const start = (page.value - 1) * pageSize
+  return orders.value.slice(start, start + pageSize)
+})
+
+function orderKey(order: any) {
+  return String(order?.id || order?.orderNo || '')
+}
+
+function isPanel(order: any, kind: 'ship' | 'detail') {
+  return openPanels.value[orderKey(order)] === kind
+}
+
+function togglePanel(order: any, kind: 'ship' | 'detail') {
+  const key = orderKey(order)
+  openPanels.value[key] = openPanels.value[key] === kind ? null : kind
+}
 
 function statusKey(order: any): string {
   const s = Number(order?.status)
@@ -163,6 +266,51 @@ function itemName(item: any) {
   return item.nameZh || item.productName || item.nameEn || '—'
 }
 
+function primaryItem(order: any) {
+  const items = order?.items || []
+  return (
+    items.find((i: any) => i.itemType === 'product' || i.itemType === 'renewal')
+    || items[0]
+    || null
+  )
+}
+
+function primaryItemName(order: any) {
+  const item = primaryItem(order)
+  return item ? itemName(item) : (order?.productName || '—')
+}
+
+function productInitial(order: any) {
+  const name = primaryItemName(order)
+  const ch = String(name).trim().charAt(0)
+  return ch || 'T'
+}
+
+function extraItemCount(order: any) {
+  const n = (order?.items || []).length
+  return Math.max(0, n - 1)
+}
+
+function itemPrice(order: any) {
+  const item = primaryItem(order)
+  if (item) return Number(item.subtotal ?? item.price ?? 0)
+  return orderAmount(order)
+}
+
+function orderAmount(order: any) {
+  return Number(order.finalAmount ?? order.payableAmount ?? order.totalAmount ?? 0)
+}
+
+function formatShortDate(raw: string) {
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return raw
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${mm}-${dd} ${hh}:${mi}`
+}
+
 function hasShipping(order: any) {
   return !!(
     order?.trackingNumber
@@ -200,6 +348,8 @@ async function search() {
   loading.value = true
   orders.value = []
   searched.value = false
+  page.value = 1
+  openPanels.value = {}
   try {
     const res: any = await orderApi.guestLookup({ email: em })
     if (res?.code === 200) {
@@ -231,146 +381,241 @@ async function continuePay(order: any) {
 <style scoped>
 .order-lookup-page {
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 89, 181, 0.08), transparent),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f6 100%);
+  background: #f5f5f5;
 }
 .lookup-main {
-  padding: 48px 16px 80px;
+  padding: 36px 16px 72px;
   max-width: 760px;
 }
 .lookup-hero h1 {
-  margin: 0 0 8px;
-  font-size: clamp(26px, 4vw, 34px);
-  letter-spacing: -0.02em;
-  color: #0f172a;
+  margin: 0 0 6px;
+  font-size: 22px;
+  color: #111;
 }
 .lookup-hero p {
-  margin: 0 0 28px;
-  color: #64748b;
+  margin: 0 0 18px;
+  color: #666;
+  font-size: 14px;
   line-height: 1.5;
 }
 .lookup-card,
-.result-card,
 .empty-card {
   background: #fff;
-  border-radius: 18px;
-  padding: 24px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 10px 36px rgba(15, 23, 42, 0.05);
+  border-radius: 10px;
+  padding: 20px;
 }
-.lookup-btn,
-.pay-btn {
+.lookup-btn {
   width: 100%;
-  margin-top: 4px;
 }
 .lookup-tip {
-  margin: 14px 0 0;
+  margin: 12px 0 0;
   font-size: 13px;
-  color: #94a3b8;
+  color: #999;
   line-height: 1.5;
 }
 .result-list {
-  margin-top: 22px;
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+}
+.result-meta {
+  font-size: 13px;
+  color: #666;
+}
+.pager {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
 }
 .empty-card {
-  color: #64748b;
+  color: #666;
   text-align: center;
   padding: 36px 20px;
 }
-.result-head {
+
+.m2-card {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.m2-top {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
 }
-.result-head-main {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.m2-top-left {
+  color: #999;
   min-width: 0;
-}
-.order-no {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  word-break: break-all;
-}
-.status-pill {
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 650;
-}
-.status-pill.s-pending { background: #fff7ed; color: #c2410c; }
-.status-pill.s-paid { background: #eff6ff; color: #1d4ed8; }
-.status-pill.s-shipped { background: #ecfdf5; color: #047857; }
-.status-pill.s-completed { background: #f0fdf4; color: #15803d; }
-.status-pill.s-cancelled { background: #f8fafc; color: #64748b; }
-.result-amount {
-  font-size: 22px;
-  font-weight: 750;
-  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.result-amount small {
-  font-size: 12px;
-  font-weight: 600;
-  color: #94a3b8;
-  margin-left: 2px;
+.m2-top-left .dot {
+  margin: 0 4px;
 }
-.meta-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.m2-status {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #ff5000;
+}
+.m2-status.s-paid,
+.m2-status.s-shipped,
+.m2-status.s-completed {
+  color: #00a26a;
+}
+.m2-status.s-cancelled {
+  color: #999;
+}
+
+.m2-mid {
+  display: flex;
   gap: 12px;
-  padding: 14px 0;
-  border-top: 1px solid #f1f5f9;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px;
+  align-items: flex-start;
 }
-.meta-label {
-  display: block;
-  font-size: 12px;
+.m2-pic {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  background: #f7f8fa;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  font-weight: 700;
   color: #94a3b8;
-  margin-bottom: 2px;
+  flex-shrink: 0;
 }
-.meta-value {
+.m2-info {
+  flex: 1;
+  min-width: 0;
+}
+.m2-title {
   font-size: 14px;
-  font-weight: 600;
-  color: #334155;
+  font-weight: 650;
+  line-height: 1.4;
+  color: #111;
 }
-.block-title {
-  margin: 16px 0 8px;
+.m2-sku {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.45;
+}
+.m2-price {
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #111;
+}
+
+.m2-bot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+.m2-sum {
+  font-size: 13px;
+  color: #666;
+}
+.m2-sum b {
+  color: #111;
+  font-size: 16px;
+  margin-left: 4px;
+}
+.m2-sum small {
+  margin-left: 2px;
+  font-size: 12px;
+  color: #999;
+}
+.m2-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.m2-btn {
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.m2-btn:hover {
+  border-color: #bbb;
+}
+.m2-btn.primary {
+  border-color: #ff5000;
+  color: #ff5000;
+}
+.m2-btn.primary:hover {
+  background: #fff7f2;
+}
+
+.m2-panel {
+  padding: 12px 14px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fff;
+}
+.panel-title {
+  margin: 4px 0 8px;
   font-size: 13px;
   font-weight: 700;
-  color: #0f172a;
+  color: #111;
 }
 .item-row,
 .ship-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 0;
+  padding: 6px 0;
   font-size: 14px;
   color: #475569;
 }
 .item-name { min-width: 0; }
-.item-price { font-weight: 650; color: #0f172a; flex-shrink: 0; }
-.ship-row span { color: #94a3b8; flex-shrink: 0; }
-.ship-row strong { text-align: right; color: #0f172a; font-weight: 650; }
+.item-price { font-weight: 650; color: #111; flex-shrink: 0; }
+.ship-row span { color: #999; flex-shrink: 0; }
+.ship-row strong { text-align: right; color: #111; font-weight: 650; }
 .ship-row--top { align-items: flex-start; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; }
-.shipping-block,
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  margin: 8px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.meta-label {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 2px;
+}
+.meta-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
 .notice-block {
-  margin-top: 4px;
-  padding: 4px 12px 12px;
-  border-radius: 12px;
-  background: #f8fafc;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f7f8fa;
 }
 .notice-block p {
   margin: 0;
@@ -382,21 +627,25 @@ async function continuePay(order: any) {
 .qr-block {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed #e8e8e8;
 }
 .qr-code {
   display: block;
   margin: 8px 0;
   padding: 10px;
   border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: #f7f8fa;
+  border: 1px solid #eee;
   font-size: 12px;
   word-break: break-all;
-  color: #334155;
+  color: #333;
 }
+.muted { color: #999; font-size: 13px; }
+
 @media (max-width: 560px) {
   .meta-grid { grid-template-columns: 1fr; }
-  .result-head { flex-direction: column; }
+  .m2-bot { align-items: flex-start; }
+  .m2-btns { width: 100%; }
+  .m2-btn { flex: 1; text-align: center; }
 }
 </style>
