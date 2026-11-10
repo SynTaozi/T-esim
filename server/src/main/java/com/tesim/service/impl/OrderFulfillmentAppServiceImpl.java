@@ -59,7 +59,7 @@ public class OrderFulfillmentAppServiceImpl implements OrderFulfillmentAppServic
         String remark = trim(req.getShippingRemark());
 
         if (!StringUtils.hasText(tracking) && !StringUtils.hasText(qr)) {
-            throw new BizException("请至少填写物流单号或 eSIM 激活码/二维码内容");
+            throw new BizException("请至少填写物流单号或上传二维码图片");
         }
 
         LocalDateTime now = LocalDateTime.now();

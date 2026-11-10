@@ -51,8 +51,9 @@ public class BusinessMailFacade {
         if (esim != null) {
             activation = firstNonBlank(esim.getQrPayload(), esim.getActivationCode());
         }
-        String qrCodeUrl = looksLikeUrl(activation) ? activation : "";
-        // 非 URL 的激活码塞进备注，避免 {{#if qrCodeUrl}} 空白又丢信息
+        // 上传的二维码图为 /api/uploads/... 或 http(s)；邮件里转成绝对地址
+        String qrCodeUrl = isImageRef(activation) ? toAbsoluteAssetUrl(activation) : "";
+        // 非图片链接的纯文本激活码塞进备注，避免 {{#if qrCodeUrl}} 空白又丢信息
         if (!StringUtils.hasText(qrCodeUrl) && StringUtils.hasText(activation)) {
             String tip = "激活信息: " + activation;
             remark = StringUtils.hasText(remark) ? remark + "；" + tip : tip;
@@ -204,12 +205,33 @@ public class BusinessMailFacade {
         return locale.toLowerCase(Locale.ROOT).startsWith("en") ? "en" : "zh";
     }
 
-    private static boolean looksLikeUrl(String v) {
+    private static boolean isImageRef(String v) {
         if (!StringUtils.hasText(v)) {
             return false;
         }
         String t = v.trim().toLowerCase(Locale.ROOT);
-        return t.startsWith("http://") || t.startsWith("https://");
+        if (t.startsWith("http://") || t.startsWith("https://")) {
+            return true;
+        }
+        return t.startsWith("/api/uploads/") || t.startsWith("/uploads/");
+    }
+
+    private String toAbsoluteAssetUrl(String raw) {
+        String v = raw == null ? "" : raw.trim();
+        if (!StringUtils.hasText(v)) {
+            return "";
+        }
+        if (v.toLowerCase(Locale.ROOT).startsWith("http://")
+                || v.toLowerCase(Locale.ROOT).startsWith("https://")) {
+            return v;
+        }
+        String path = v.startsWith("/") ? v : "/" + v;
+        String api = siteProperties.apiBase(); // e.g. http://host:8088/api
+        if (path.startsWith("/api/")) {
+            String origin = api.endsWith("/api") ? api.substring(0, api.length() - 4) : api;
+            return origin + path;
+        }
+        return api + path;
     }
 
     private static String nullToEmpty(String v) {

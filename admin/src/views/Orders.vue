@@ -79,7 +79,7 @@
 
     <el-drawer v-model="fulfillVisible" title="手动发货" size="520px" destroy-on-close>
       <template v-if="fulfillRow">
-        <p class="fulfill-tip">订单 {{ fulfillRow.orderNo }} — 至少填写物流单号或 eSIM 激活码/二维码内容之一。</p>
+        <p class="fulfill-tip">订单 {{ fulfillRow.orderNo }} — 至少填写物流单号或上传激活二维码图片之一。</p>
         <el-form label-position="top" class="fulfill-form">
           <el-form-item label="承运商">
             <el-select v-model="shipForm.shippingCarrier" clearable placeholder="可选" style="width:100%">
@@ -98,16 +98,37 @@
           <el-form-item label="物流单号">
             <el-input v-model="shipForm.trackingNumber" placeholder="实体物流单号（可选）" />
           </el-form-item>
-          <el-form-item label="联系电话">
-            <el-input v-model="shipForm.shippingPhone" placeholder="可选" />
+          <el-form-item label="手机号码">
+            <el-input v-model="shipForm.shippingPhone" placeholder="发货所用手机号，展示给用户查看" />
           </el-form-item>
           <el-form-item label="激活码/二维码">
-            <el-input
-              v-model="shipForm.trackingQrCode"
-              type="textarea"
-              :rows="4"
-              placeholder="eSIM 激活码或二维码内容（LPA 字符串等）"
-            />
+            <div class="qr-upload">
+              <el-upload
+                :show-file-list="false"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                :http-request="uploadQr"
+                :disabled="qrUploading"
+              >
+                <div v-if="shipForm.trackingQrCode" class="qr-preview" @click.stop>
+                  <img :src="qrPreviewSrc" alt="二维码" />
+                </div>
+                <el-button v-else :loading="qrUploading" type="primary" plain>
+                  {{ qrUploading ? '上传中…' : '上传二维码图片' }}
+                </el-button>
+              </el-upload>
+              <div v-if="shipForm.trackingQrCode" class="qr-actions">
+                <el-upload
+                  :show-file-list="false"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  :http-request="uploadQr"
+                  :disabled="qrUploading"
+                >
+                  <el-button size="small" :loading="qrUploading">重新上传</el-button>
+                </el-upload>
+                <el-button size="small" type="danger" plain :disabled="qrUploading" @click="clearQr">移除</el-button>
+              </div>
+              <p class="field-hint">请上传二维码图片（JPG / PNG / WEBP），勿手动填写链接</p>
+            </div>
           </el-form-item>
           <el-form-item label="发货备注">
             <el-input v-model="shipForm.shippingRemark" type="textarea" :rows="3" placeholder="可选" />
@@ -123,11 +144,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, type UploadRequestOptions } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { orderApi } from '@/api/order'
+import { uploadImage } from '@/api/file'
 
 const statuses = [
   { value: 'PENDING_PAYMENT', label: '待支付' },
@@ -149,12 +171,20 @@ const query = reactive({ page: 0, size: 20, orderNo: '', email: '', status: '' }
 const fulfillVisible = ref(false)
 const fulfillRow = ref<any>(null)
 const fulfilling = ref(false)
+const qrUploading = ref(false)
 const shipForm = reactive({
   shippingCarrier: '',
   trackingNumber: '',
   shippingPhone: '',
   trackingQrCode: '',
   shippingRemark: ''
+})
+
+const qrPreviewSrc = computed(() => {
+  const u = (shipForm.trackingQrCode || '').trim()
+  if (!u) return ''
+  if (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')) return u
+  return u
 })
 
 function canFulfill(row: any) {
@@ -204,10 +234,36 @@ function openFulfill(row: any) {
   fulfillVisible.value = true
 }
 
+async function uploadQr(options: UploadRequestOptions) {
+  const file = options.file as File
+  if (!file) return
+  qrUploading.value = true
+  try {
+    const res = await uploadImage(file, 'shipping')
+    const url = res?.data?.url
+    if (!url) {
+      throw new Error(res?.message || '上传失败')
+    }
+    shipForm.trackingQrCode = url
+    ElMessage.success('二维码已上传')
+    options.onSuccess?.(res as any)
+  } catch (e: any) {
+    const msg = e?.message || '上传失败'
+    ElMessage.error(msg)
+    options.onError?.(e)
+  } finally {
+    qrUploading.value = false
+  }
+}
+
+function clearQr() {
+  shipForm.trackingQrCode = ''
+}
+
 async function confirmFulfill() {
   if (!fulfillRow.value) return
   if (!shipForm.trackingNumber.trim() && !shipForm.trackingQrCode.trim()) {
-    ElMessage.warning('请至少填写物流单号或激活码/二维码')
+    ElMessage.warning('请至少填写物流单号或上传二维码图片')
     return
   }
   fulfilling.value = true
@@ -226,7 +282,7 @@ async function confirmFulfill() {
     }
     await load()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '发货失败')
+    ElMessage.error(e?.message || '发货失败')
   } finally {
     fulfilling.value = false
   }
@@ -261,5 +317,36 @@ onMounted(load)
   padding: 16px 20px;
   background: #fff;
   border-top: 1px solid #ebeef5;
+}
+.qr-upload {
+  width: 100%;
+}
+.qr-preview {
+  width: 180px;
+  height: 180px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+  display: grid;
+  place-items: center;
+}
+.qr-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.qr-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.field-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
 }
 </style>
