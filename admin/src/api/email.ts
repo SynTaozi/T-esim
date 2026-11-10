@@ -7,11 +7,7 @@ export const emailAccountApi = {
       ? (api.put(`/admin/email-accounts/${data.id}`, data) as Promise<ApiResult<any>>)
       : (api.post('/admin/email-accounts', data) as Promise<ApiResult<any>>),
   remove: (id: number) => api.delete(`/admin/email-accounts/${id}`) as Promise<ApiResult<void>>,
-  test: (id: number) => api.post(`/admin/email-accounts/${id}/test`) as Promise<ApiResult<any>>,
-  listEmails: (id: number, params?: Record<string, unknown>) =>
-    api.get(`/admin/email-accounts/${id}/emails`, { params }) as Promise<ApiResult<PageResult<any>>>,
-  send: (id: number, data: unknown) =>
-    api.post(`/admin/email-accounts/${id}/emails/send`, data) as Promise<ApiResult<any>>
+  test: (id: number) => api.post(`/admin/email-accounts/${id}/test`) as Promise<ApiResult<any>>
 }
 
 export const emailTemplateApi = {

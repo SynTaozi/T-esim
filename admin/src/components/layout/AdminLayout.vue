@@ -133,7 +133,6 @@ const pageTitleMap: Record<string, string> = {
   '/tutorials': '教程管理',
   '/app-download-qrcodes': 'App下载二维码',
   '/coupons': '优惠券管理',
-  '/emails': '邮件收件箱',
   '/email-accounts': '邮件账户管理',
   '/email-templates': '邮件模板管理',
   '/email-send-logs': '邮件发送日志',

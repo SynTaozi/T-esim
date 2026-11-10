@@ -1,7 +1,6 @@
 package com.tesim.controller.admin;
 
 import com.tesim.common.ApiResponse;
-import com.tesim.common.PageResult;
 import com.tesim.dto.admin.AdminEmailAccountRequest;
 import com.tesim.dto.admin.AdminEmailAccountVO;
 import com.tesim.service.AdminEmailAppService;
@@ -47,43 +46,5 @@ public class AdminEmailAccountController {
     @PostMapping("/{id}/test")
     public ApiResponse<Map<String, Object>> test(@PathVariable Long id) {
         return ApiResponse.ok(emailAppService.testAccount(id));
-    }
-
-    @GetMapping("/{accountId}/emails")
-    public ApiResponse<PageResult<Map<String, Object>>> emails(
-            @PathVariable Long accountId,
-            @RequestParam(required = false, defaultValue = "INBOX") String folderType,
-            @RequestParam(required = false) Integer start,
-            @RequestParam(required = false) Integer limit) {
-        return ApiResponse.ok(emailAppService.listEmails(accountId, folderType, start, limit));
-    }
-
-    @GetMapping("/{accountId}/emails/{messageId}")
-    public ApiResponse<Map<String, Object>> getEmail(
-            @PathVariable Long accountId,
-            @PathVariable String messageId,
-            @RequestParam(required = false, defaultValue = "INBOX") String folderType) {
-        return ApiResponse.ok(emailAppService.getEmail(accountId, messageId, folderType));
-    }
-
-    @PostMapping("/{accountId}/emails/send")
-    public ApiResponse<Map<String, Object>> send(
-            @PathVariable Long accountId,
-            @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(emailAppService.sendEmail(accountId, body));
-    }
-
-    @PutMapping("/{accountId}/emails/{messageId}/read")
-    public ApiResponse<Map<String, Object>> markRead(
-            @PathVariable Long accountId,
-            @PathVariable String messageId) {
-        return ApiResponse.ok(emailAppService.markRead(accountId, messageId));
-    }
-
-    @DeleteMapping("/{accountId}/emails/{messageId}")
-    public ApiResponse<Map<String, Object>> deleteEmail(
-            @PathVariable Long accountId,
-            @PathVariable String messageId) {
-        return ApiResponse.ok(emailAppService.deleteEmail(accountId, messageId));
     }
 }

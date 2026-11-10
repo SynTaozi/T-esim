@@ -48,9 +48,8 @@ public class OrderAppServiceImpl implements OrderAppService {
     private final I18nProductService i18nProductService;
     private final CmsSiteSettingService siteSettingService;
     private final CouponAppService couponAppService;
-    private final MemberSubscriptionService memberSubscriptionService;
-    private final ProductCoverageService productCoverageService;
     private final OrderPaymentExpireService orderPaymentExpireService;
+    private final DingtalkNotifyService dingtalkNotifyService;
 
     @Transactional
     public OrderVO create(CreateOrderRequest req) {
@@ -275,65 +274,12 @@ public class OrderAppServiceImpl implements OrderAppService {
         }
         orderPaymentExpireService.clear(order.getId());
         ensureSubscriptions(order);
+        dingtalkNotifyService.notifyOrderPaid(order, payment);
     }
 
     @Override
-    @Transactional
     public void ensureSubscriptions(SalesOrder order) {
-        fulfillSubscriptions(order);
-    }
-
-    private void fulfillSubscriptions(SalesOrder order) {
-        if (order.getMemberId() == null) {
-            // Guest orders have no member_subscription row; digital delivery uses buyer_email.
-            return;
-        }
-        long exists = memberSubscriptionService.count(new LambdaQueryWrapper<MemberSubscription>()
-                .eq(MemberSubscription::getOrderId, order.getId()));
-        if (exists > 0) {
-            return;
-        }
-        List<SalesOrderItem> items = salesOrderItemService.list(new LambdaQueryWrapper<SalesOrderItem>()
-                .eq(SalesOrderItem::getOrderId, order.getId()));
-        for (SalesOrderItem item : items) {
-            if (item.getProductId() == null) {
-                continue;
-            }
-            Product product = productService.getById(item.getProductId());
-            if (product == null) {
-                continue;
-            }
-            // DEVICE accessories are not member phone assets
-            if ("DEVICE".equalsIgnoreCase(product.getProductKind())) {
-                continue;
-            }
-            String country = productCoverageService.list(new LambdaQueryWrapper<ProductCoverage>()
-                            .eq(ProductCoverage::getProductId, product.getId()))
-                    .stream()
-                    .map(ProductCoverage::getCountryCode)
-                    .filter(StringUtils::hasText)
-                    .findFirst()
-                    .orElse(null);
-            int days = item.getValidityDays() != null && item.getValidityDays() > 0
-                    ? item.getValidityDays()
-                    : (item.getMonths() != null && item.getMonths() > 0 ? item.getMonths() * 30 : 30);
-            MemberSubscription sub = new MemberSubscription();
-            sub.setMemberId(order.getMemberId());
-            sub.setOrderId(order.getId());
-            sub.setOrderItemId(item.getId());
-            sub.setProductId(item.getProductId());
-            sub.setSkuId(item.getSkuId());
-            sub.setMsisdn(LocaleHelper.pick(item.getTitleZh(), item.getTitleEn()));
-            sub.setCountryCode(country);
-            sub.setCarrier(product.getSupplierFlag());
-            sub.setPlanSnapshot(item.getTitleZh());
-            sub.setPurchasePrice(item.getUnitPrice());
-            sub.setRenewalPrice(item.getRenewalPrice() != null ? item.getRenewalPrice() : item.getUnitPrice());
-            sub.setStatus("ACTIVE");
-            sub.setActivatedAt(LocalDateTime.now());
-            sub.setExpiresAt(LocalDateTime.now().plusDays(days));
-            memberSubscriptionService.save(sub);
-        }
+        // 暂不自动创建 member_subscription（无真实号码/号池，手动发货阶段用不到）
     }
 
     public SalesOrder requireOwned(Long id) {

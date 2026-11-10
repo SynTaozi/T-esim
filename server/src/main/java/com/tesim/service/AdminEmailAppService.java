@@ -41,28 +41,6 @@ public interface AdminEmailAppService {
 
     Map<String, Object> testAccount(Long id);
 
-
-
-    PageResult<Map<String, Object>> listEmails(Long accountId, String folderType, Integer start, Integer limit);
-
-
-
-    Map<String, Object> getEmail(Long accountId, String messageId, String folderType);
-
-
-
-    Map<String, Object> sendEmail(Long accountId, Map<String, Object> body);
-
-
-
-    Map<String, Object> markRead(Long accountId, String messageId);
-
-
-
-    Map<String, Object> deleteEmail(Long accountId, String messageId);
-
-
-
     List<AdminEmailTemplateVO> listTemplates();
 
 

@@ -31,6 +31,7 @@ public class AdminDingtalkAppServiceImpl implements AdminDingtalkAppService {
 
     private final SysDingtalkConfigService configService;
     private final SysDingtalkNotifyLogService logService;
+    private final DingtalkNotifyService dingtalkNotifyService;
 
     public List<AdminDingtalkConfigVO> listConfigs() {
         return configService.list(new LambdaQueryWrapper<SysDingtalkConfig>()
@@ -66,24 +67,12 @@ public class AdminDingtalkAppServiceImpl implements AdminDingtalkAppService {
         configService.removeById(id);
     }
 
-    @Transactional
     public Map<String, Object> testSend(Long id) {
-        SysDingtalkConfig c = require(id);
-        if (!StringUtils.hasText(c.getWebhookUrl())) {
-            throw new BizException("Webhook 未配置");
-        }
-        SysDingtalkNotifyLog log = new SysDingtalkNotifyLog();
-        log.setConfigId(c.getId());
-        log.setEventType("TEST");
-        log.setTitle("钉钉测试消息");
-        log.setContent("配置校验通过（未实际调用钉钉接口）: " + c.getName());
-        log.setStatus("SUCCESS");
-        logService.save(log);
-
+        require(id);
+        dingtalkNotifyService.testSend(id);
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
-        result.put("message", "测试消息已记录");
-        result.put("logId", log.getId());
+        result.put("message", "测试消息已发送，请查看钉钉群");
         return result;
     }
 

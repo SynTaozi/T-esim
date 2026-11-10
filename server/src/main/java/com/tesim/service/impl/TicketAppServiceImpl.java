@@ -11,6 +11,7 @@ import com.tesim.common.PageResult;
 import com.tesim.dto.ticket.CreateTicketRequest;
 import com.tesim.dto.ticket.TicketMessageVO;
 import com.tesim.dto.ticket.TicketVO;
+import com.tesim.entity.Member;
 import com.tesim.entity.Ticket;
 import com.tesim.entity.TicketMessage;
 import com.tesim.security.SecurityUtils;
@@ -35,6 +36,8 @@ public class TicketAppServiceImpl implements TicketAppService {
 
     private final TicketService ticketService;
     private final TicketMessageService ticketMessageService;
+    private final MemberService memberService;
+    private final DingtalkNotifyService dingtalkNotifyService;
 
     @Transactional
     public TicketVO create(CreateTicketRequest req) {
@@ -62,6 +65,10 @@ public class TicketAppServiceImpl implements TicketAppService {
         msg.setSenderName("User");
         msg.setContent(appendImageUrls(content, req.getImageUrls()));
         ticketMessageService.save(msg);
+
+        Member member = memberService.getById(memberId);
+        String userEmail = member == null ? null : member.getEmail();
+        dingtalkNotifyService.notifyNewTicket(ticket, userEmail);
 
         return toFront(ticket, true);
     }

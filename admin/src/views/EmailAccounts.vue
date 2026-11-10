@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="邮件账户" subtitle="SMTP / IMAP 账户">
+    <PageHeader title="邮件账户" subtitle="SMTP 发信账户（业务邮件异步发送）">
       <template #actions><el-button type="primary" @click="edit()">新建</el-button></template>
     </PageHeader>
     <div class="page-card">
@@ -13,11 +13,10 @@
         <el-table-column label="启用" width="80">
           <template #default="{ row }"><StatusTag :status="row.enabled ? 'ACTIVE' : 'DISABLED'" /></template>
         </el-table-column>
-        <el-table-column label="操作" width="240">
+        <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <el-button link type="primary" @click="edit(row)">编辑</el-button>
             <el-button link @click="test(row.id)">测试</el-button>
-            <el-button link @click="$router.push({ path: '/emails', query: { accountId: row.id } })">收发件</el-button>
             <el-button link type="danger" @click="remove(row.id)">删除</el-button>
           </template>
         </el-table-column>
@@ -37,8 +36,6 @@
         </el-form-item>
         <el-form-item label="SMTP主机" required><el-input v-model="form.smtpHost" /></el-form-item>
         <el-form-item label="SMTP端口" required><el-input-number v-model="form.smtpPort" :min="1" /></el-form-item>
-        <el-form-item label="IMAP主机"><el-input v-model="form.imapHost" /></el-form-item>
-        <el-form-item label="IMAP端口"><el-input-number v-model="form.imapPort" :min="1" /></el-form-item>
         <el-form-item label="用户名" required><el-input v-model="form.username" /></el-form-item>
         <el-form-item label="密码" :required="!form.id">
           <el-input v-model="form.password" type="password" show-password :placeholder="form.id ? '不改请留空' : ''" />
@@ -73,8 +70,6 @@ function blankForm() {
     purpose: 'GENERAL',
     smtpHost: '',
     smtpPort: 465,
-    imapHost: '',
-    imapPort: 993,
     username: '',
     password: '',
     enabled: true

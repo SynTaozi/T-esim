@@ -58,7 +58,7 @@ public interface OrderAppService {
 
     void markPaid(SalesOrder order, SalesOrderPayment payment, String transactionId);
 
-    /** Idempotent: create member_subscription rows after payment/fulfillment when memberId present. */
+    /** Reserved: auto member_subscription creation currently disabled. */
     void ensureSubscriptions(SalesOrder order);
 
     SalesOrder requireOwned(Long id);

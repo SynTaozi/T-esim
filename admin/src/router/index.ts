@@ -31,7 +31,6 @@ const routes: RouteRecordRaw[] = [
       { path: 'email-accounts', name: 'EmailAccounts', component: () => import('@/views/EmailAccounts.vue'), meta: { title: '邮件账户' } },
       { path: 'email-templates', name: 'EmailTemplates', component: () => import('@/views/EmailTemplates.vue'), meta: { title: '邮件模板' } },
       { path: 'email-send-logs', name: 'EmailSendLogs', component: () => import('@/views/EmailSendLogs.vue'), meta: { title: '发送日志' } },
-      { path: 'emails', name: 'Emails', component: () => import('@/views/Emails.vue'), meta: { title: '收发件' } },
       { path: 'card-platform', name: 'CardPlatform', component: () => import('@/views/CardPlatform.vue'), meta: { title: '发卡平台' } },
       { path: 'card-platform/bulk-mapping', name: 'CardPlatformBulkMapping', component: () => import('@/views/CardPlatformBulkMapping.vue'), meta: { title: '批量映射' } },
       { path: 'dingtalk', name: 'DingTalk', component: () => import('@/views/DingTalk.vue'), meta: { title: '钉钉通知' } },

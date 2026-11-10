@@ -105,51 +105,6 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
         return result;
     }
 
-    public PageResult<Map<String, Object>> listEmails(Long accountId, String folderType, Integer start, Integer limit) {
-        requireAccount(accountId);
-        int page = start == null || start < 0 ? 0 : start;
-        int size = limit == null || limit < 1 ? 20 : limit;
-        return PageResult.empty(page, size);
-    }
-
-    public Map<String, Object> getEmail(Long accountId, String messageId, String folderType) {
-        requireAccount(accountId);
-        Map<String, Object> result = new HashMap<>();
-        result.put("messageId", messageId);
-        result.put("folderType", folderType);
-        result.put("subject", null);
-        result.put("body", null);
-        return result;
-    }
-
-    public Map<String, Object> sendEmail(Long accountId, Map<String, Object> body) {
-        SysEmailAccount a = requireAccount(accountId);
-        String to = body == null ? null : str(body.get("to"));
-        String subject = body == null ? null : str(body.get("subject"));
-        String content = body == null ? null : str(body.get("body"));
-        if (!StringUtils.hasText(to) || !StringUtils.hasText(content)) {
-            throw new BizException("收件人和正文不能为空");
-        }
-        if (!Boolean.TRUE.equals(a.getEnabled())) {
-            throw new BizException("请先启用该邮箱账户");
-        }
-        Long logId = mailSendService.sendAsync(MailMessage.builder()
-                .accountId(a.getId())
-                .purpose(StringUtils.hasText(a.getPurpose()) ? a.getPurpose() : MailPurposes.GENERAL)
-                .bizType(MailBizTypes.ADMIN_MANUAL)
-                .bizId(String.valueOf(a.getId()))
-                .to(to.trim())
-                .subject(StringUtils.hasText(subject) ? subject.trim() : "管理员邮件")
-                .htmlBody(content.contains("<") ? content : "<pre style=\"white-space:pre-wrap;font-family:inherit\">"
-                        + content.replace("&", "&amp;").replace("<", "&lt;") + "</pre>")
-                .build());
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("message", "邮件已加入发送队列");
-        result.put("logId", logId);
-        return result;
-    }
-
     public PageResult<AdminEmailSendLogVO> pageSendLogs(String status, String bizType, String toEmail,
                                                         Integer page, Integer size) {
         int p = page == null || page < 0 ? 0 : page;
@@ -190,16 +145,6 @@ public class AdminEmailAppServiceImpl implements AdminEmailAppService {
 
     private static String format(LocalDateTime t) {
         return t == null ? null : FMT.format(t);
-    }
-
-    public Map<String, Object> markRead(Long accountId, String messageId) {
-        requireAccount(accountId);
-        return Map.of("success", true, "messageId", messageId);
-    }
-
-    public Map<String, Object> deleteEmail(Long accountId, String messageId) {
-        requireAccount(accountId);
-        return Map.of("success", true, "messageId", messageId);
     }
 
     public List<AdminEmailTemplateVO> listTemplates() {
