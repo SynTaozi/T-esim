@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>订单查询 · B · Split portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0b1220;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --brand: #1d4ed8;
+      --brand-2: #0ea5e9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background: #f1f5f9;
+    }
+    .shell {
+      max-width: 980px;
+      margin: 40px auto;
+      padding: 0 16px 60px;
+    }
+    .panel {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      min-height: 480px;
+      background: #fff;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, .08);
+    }
+    .left {
+      padding: 42px 40px;
+      background:
+        linear-gradient(160deg, #0b1f4d 0%, #123a7a 48%, #0f766e 120%);
+      color: #fff;
+      position: relative;
+    }
+    .left::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -30% 20%;
+      height: 240px;
+      background: radial-gradient(circle, rgba(14,165,233,.35), transparent 70%);
+      pointer-events: none;
+    }
+    .brand {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .8;
+      margin-bottom: 36px;
+    }
+    h1 {
+      margin: 0 0 14px;
+      font-size: clamp(28px, 4vw, 36px);
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+    }
+    .desc {
+      margin: 0 0 28px;
+      color: rgba(255,255,255,.78);
+      line-height: 1.65;
+      font-size: 15px;
+      max-width: 34ch;
+    }
+    .points { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    .points li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 14px;
+      color: rgba(255,255,255,.9);
+    }
+    .points b {
+      width: 22px; height: 22px; border-radius: 7px;
+      display: grid; place-items: center;
+      background: rgba(255,255,255,.14);
+      font-size: 12px;
+      flex: 0 0 auto;
+    }
+    .right {
+      padding: 42px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .right h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+    .right p {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      height: 48px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 0 14px;
+      font: inherit;
+      font-size: 15px;
+      outline: none;
+    }
+    input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(29,78,216,.14);
+    }
+    .btn {
+      margin-top: 14px;
+      width: 100%;
+      height: 48px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(90deg, var(--brand), #2563eb);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .secure {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .badge {
+      position: fixed;
+      top: 14px; right: 14px;
+      background: #0b1220; color: #fff;
+      font-size: 11px; font-weight: 700;
+      padding: 5px 9px; border-radius: 8px;
+      z-index: 2;
+    }
+    @media (max-width: 820px) {
+      .panel { grid-template-columns: 1fr; }
+      .left { padding: 32px 24px; }
+      .right { padding: 28px 24px 34px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="badge">B · Split portal</div>
+  <div class="shell">
+    <div class="panel">
+      <aside class="left">
+        <div class="brand">Tesim Order Portal</div>
+        <h1>管理你的<br/>旅行连接订单</h1>
+        <p class="desc">无需登录。用下单邮箱即可查看状态、物流与 eSIM 激活码。</p>
+        <ul class="points">
+          <li><b>1</b><span>输入下单邮箱</span></li>
+          <li><b>2</b><span>查看全部历史订单</span></li>
+          <li><b>3</b><span>继续支付 / 查看发货信息</span></li>
+        </ul>
+      </aside>
+      <section class="right">
+        <h2>订单查询</h2>
+        <p>输入下单邮箱，查看该邮箱下的全部订单</p>
+        <label for="email">下单邮箱</label>
+        <input id="email" type="email" placeholder="下单时填写的邮箱" />
+        <button class="btn" type="button">查询</button>
+        <div class="secure">🔐 仅向该邮箱展示订单信息</div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

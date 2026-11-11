@@ -33,7 +33,10 @@ const imgStyle = {
 }
 
 function isDirectImageSource(v: string) {
-  return /^https?:\/\//i.test(v) || v.startsWith('data:image/')
+  if (/^https?:\/\//i.test(v) || v.startsWith('data:image/')) return true
+  // 站内上传路径，如 /api/uploads/shipping/xxx.png
+  if (v.startsWith('/api/uploads/') || v.startsWith('/uploads/')) return true
+  return /\.(png|jpe?g|gif|webp|svg|bmp)(\?.*)?$/i.test(v)
 }
 
 async function render(value?: string) {

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo E — 去哪旅行（参考 Nomad）</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{--accent:#003ec7;--soft:rgba(0,62,199,.08);--text:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#fff}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+    .banner{position:sticky;top:0;z-index:40;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 18px;background:#0f172a;color:#cbd5e1;font-size:13px}
+    .banner a{color:#94a3b8;text-decoration:none;padding:4px 10px;border-radius:999px}.banner a.active,.banner a:hover{color:#fff;background:var(--accent)}
+    .banner nav{display:flex;flex-wrap:wrap;gap:6px}
+    .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+    h1{margin:0 0 8px;font:800 40px/1.1 Manrope,system-ui;letter-spacing:-.03em}
+    .sub{margin:0 0 28px;color:var(--muted)}
+    .sticky-bar{position:sticky;top:44px;z-index:20;display:flex;gap:10px;padding:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;margin-bottom:28px}
+    .sticky-bar input{flex:1;border:0;outline:0;font:inherit;font-size:15px;background:transparent}
+    .sticky-bar select{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;background:#fff}
+    .feat-title{font:700 14px Inter;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:0 0 12px}
+    .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:36px}
+    @media(max-width:800px){.feat{grid-template-columns:1fr}}
+    .feat-card{border:1px solid var(--line);border-radius:16px;padding:18px;background:linear-gradient(160deg,#fff, #f5f7ff);cursor:pointer}
+    .feat-card:hover{border-color:color-mix(in srgb,var(--accent) 40%,#fff)}
+    .feat-card h3{margin:0 0 6px;font-size:18px}
+    .feat-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+    .feat-card .price{margin-top:14px;font-weight:800;color:var(--accent)}
+    .regions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+    .regions button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;cursor:pointer;font:500 13px Inter}
+    .regions button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .az{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .row{display:grid;grid-template-columns:1.2fr .8fr .8fr auto;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid var(--line);background:#fff}
+    .row:first-child{border-top:0}
+    .row:hover{background:#f8fafc}
+    .row .name{display:flex;align-items:center;gap:10px;font-weight:600}
+    .row .muted{color:var(--muted);font-size:13px}
+    .row .cta{border:0;background:var(--soft);color:var(--accent);font-weight:700;border-radius:8px;padding:8px 12px;cursor:pointer}
+    @media(max-width:700px){.row{grid-template-columns:1fr;gap:6px}.sticky-bar{flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <div><strong style="color:#fff">Demo E</strong> · Where are you headed?（参考 Nomad：置顶搜索 + 推荐区域卡 + 国家列表）</div>
+    <nav>
+      <a href="index.html">Index</a>
+      <a href="products-filter-d-airalo.html">D Airalo</a>
+      <a class="active" href="products-filter-e-nomad.html">E Nomad</a>
+      <a href="products-filter-f-holafly.html">F Holafly</a>
+      <a href="products-filter-g-minimal.html">G Minimal</a>
+    </nav>
+  </div>
+  <div class="wrap">
+    <h1>Where are you headed?</h1>
+    <p class="sub">用「去哪」做主路径，功能分类收敛成类型下拉，不再左侧悬浮。</p>
+    <div class="sticky-bar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+      <input id="q" placeholder="Search destinations..." />
+      <select id="kind">
+        <option value="all">全部产品</option>
+        <option value="esim">流量 eSIM</option>
+        <option value="phone">手机号卡</option>
+      </select>
+    </div>
+
+    <p class="feat-title">Featured coverage</p>
+    <div class="feat" id="feat"></div>
+
+    <p class="feat-title">Browse by region</p>
+    <div class="regions" id="regions"></div>
+    <div class="az" id="list"></div>
+  </div>
+  <script>
+    const regions=['All','Asia','Europe','America','Global'];
+    const featured=[
+      {name:'Global',desc:'123 destinations · 1–20GB',price:'From $5.15/GB',region:'Global',kind:'esim'},
+      {name:'Asia Pass',desc:'日韩东南亚通行',price:'From $2.80/GB',region:'Asia',kind:'esim'},
+      {name:'US Number',desc:'长期号 / 接码',price:'From $19',region:'America',kind:'phone'}
+    ];
+    const rows=[
+      {name:'Japan',flag:'🇯🇵',region:'Asia',kind:'esim',price:'From $0.64/GB',range:'1–20GB'},
+      {name:'Hong Kong',flag:'🇭🇰',region:'Asia',kind:'phone',price:'From $12.5',range:'语音 / 接码'},
+      {name:'South Korea',flag:'🇰🇷',region:'Asia',kind:'esim',price:'From $0.90/GB',range:'3–15天'},
+      {name:'Germany',flag:'🇩🇪',region:'Europe',kind:'esim',price:'From $0.85/GB',range:'Local EU'},
+      {name:'United States',flag:'🇺🇸',region:'America',kind:'phone',price:'From $19',range:'长期号'},
+      {name:'Global',flag:'🌍',region:'Global',kind:'esim',price:'From $5.15/GB',range:'98+ destinations'}
+    ];
+    let region='All', q='', kind='all';
+    function render(){
+      document.getElementById('feat').innerHTML=featured.map(f=>`
+        <article class="feat-card" data-r="${f.region}" data-k="${f.kind}">
+          <h3>${f.name}</h3><p>${f.desc}</p><div class="price">${f.price}</div>
+        </article>`).join('');
+      document.getElementById('feat').querySelectorAll('.feat-card').forEach(el=>el.onclick=()=>{
+        region=el.dataset.r; kind=el.dataset.k; document.getElementById('kind').value=kind; render();
+      });
+      document.getElementById('regions').innerHTML=regions.map(r=>`<button class="${r===region?'active':''}" data-r="${r}">${r}</button>`).join('');
+      document.getElementById('regions').querySelectorAll('button').forEach(b=>b.onclick=()=>{region=b.dataset.r;render();});
+      const list=rows.filter(r=>{
+        if(region!=='All' && r.region!==region) return false;
+        if(kind!=='all' && r.kind!==kind) return false;
+        if(q && !r.name.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      document.getElementById('list').innerHTML=list.map(r=>`
+        <div class="row">
+          <div class="name"><span>${r.flag}</span>${r.name}</div>
+          <div class="muted">${r.range}</div>
+          <div class="muted">${r.price}</div>
+          <button class="cta">View plans</button>
+        </div>`).join('') || '<div class="row"><div class="muted">No destinations</div></div>';
+    }
+    document.getElementById('q').oninput=e=>{q=e.target.value.trim().toLowerCase();render();};
+    document.getElementById('kind').onchange=e=>{kind=e.target.value;render();};
+    render();
+  </script>
+</body>
+</html>

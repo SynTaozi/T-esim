@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo D — 目的地优先（参考 Airalo）</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root { --accent:#003ec7; --soft:rgba(0,62,199,.08); --text:#131b2e; --muted:#5b6178; --line:#e4e7f2; --bg:#f7f8fc; }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+    .banner{position:sticky;top:0;z-index:40;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 18px;background:#0f172a;color:#cbd5e1;font-size:13px}
+    .banner a{color:#94a3b8;text-decoration:none;padding:4px 10px;border-radius:999px}.banner a.active,.banner a:hover{color:#fff;background:var(--accent)}
+    .banner nav{display:flex;flex-wrap:wrap;gap:6px}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 72px}
+    h1{margin:0 0 8px;font:800 36px/1.15 Manrope,system-ui,sans-serif;letter-spacing:-.02em}
+    .sub{margin:0 0 24px;color:var(--muted);font-size:15px}
+    .search-hero{display:flex;gap:10px;align-items:center;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(15,23,42,.06);margin-bottom:18px}
+    .search-hero input{flex:1;border:0;outline:0;font:inherit;font-size:16px;padding:10px 4px;background:transparent}
+    .search-hero button{border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;padding:12px 18px;cursor:pointer}
+    .popular{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+    .popular span{font-size:12px;color:var(--muted);align-self:center;margin-right:4px}
+    .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer}
+    .chip:hover,.chip.active{border-color:color-mix(in srgb,var(--accent) 35%,#fff);background:var(--soft);color:var(--accent);font-weight:600}
+    .seg{display:inline-flex;gap:4px;padding:4px;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:22px}
+    .seg button{border:0;background:transparent;padding:8px 14px;border-radius:9px;cursor:pointer;color:var(--muted);font:500 13px Inter,system-ui}
+    .seg button.active{background:var(--accent);color:#fff;font-weight:700}
+    .section-title{margin:0 0 14px;font:700 18px Manrope,system-ui}
+    .dest-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    @media(max-width:900px){.dest-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:560px){.dest-grid{grid-template-columns:1fr} h1{font-size:28px}}
+    .dest{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:.2s}
+    .dest:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,23,42,.08)}
+    .dest.selected{outline:2px solid var(--accent)}
+    .flag{font-size:28px;margin-bottom:10px}
+    .dest h3{margin:0 0 4px;font-size:15px}
+    .dest p{margin:0;color:var(--muted);font-size:12px}
+    .dest .from{margin-top:10px;font-weight:700;color:var(--accent);font-size:14px}
+    .plans{margin-top:28px;display:none}
+    .plans.show{display:block}
+    .plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    @media(max-width:800px){.plan-grid{grid-template-columns:1fr}}
+    .plan{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}
+    .plan h4{margin:0 0 6px;font-size:16px}
+    .plan .meta{color:var(--muted);font-size:12px;margin-bottom:12px}
+    .plan .row{display:flex;justify-content:space-between;align-items:center}
+    .plan .price{font-weight:800;font-size:18px}
+    .plan .buy{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+    .note{margin-top:18px;font-size:12px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <div><strong style="color:#fff">Demo D</strong> · 目的地优先（参考 Airalo：搜索 + Popular + Local/Regional/Global）</div>
+    <nav>
+      <a href="index.html">Index</a>
+      <a class="active" href="products-filter-d-airalo.html">D Airalo</a>
+      <a href="products-filter-e-nomad.html">E Nomad</a>
+      <a href="products-filter-f-holafly.html">F Holafly</a>
+      <a href="products-filter-g-minimal.html">G Minimal</a>
+    </nav>
+  </div>
+  <div class="wrap">
+    <h1>Find your eSIM</h1>
+    <p class="sub">先选目的地，再看套餐。二级功能筛选不单独占左侧。</p>
+    <div class="search-hero">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+      <input id="q" placeholder="搜索国家 / 地区，例如 Japan" />
+      <button type="button">搜索</button>
+    </div>
+    <div class="popular" id="popular"></div>
+    <div class="seg" id="scope"></div>
+    <h2 class="section-title" id="listTitle">Local destinations</h2>
+    <div class="dest-grid" id="dests"></div>
+    <div class="plans" id="plans">
+      <h2 class="section-title" id="planTitle">Plans</h2>
+      <div class="plan-grid" id="planGrid"></div>
+    </div>
+    <p class="note">产品类型（手机号卡 / 流量）可在进入目的地后的套餐列表里用小标签区分，而不是左侧功能栏。</p>
+  </div>
+  <script>
+    const scopes = ['Local','Regional','Global'];
+    const popular = ['Japan','United States','Thailand','South Korea','Europe','Global'];
+    const dests = [
+      {name:'Japan',flag:'🇯🇵',scope:'Local',from:4.5,kind:'esim'},
+      {name:'Hong Kong',flag:'🇭🇰',scope:'Local',from:5.0,kind:'phone'},
+      {name:'United States',flag:'🇺🇸',scope:'Local',from:6.5,kind:'phone'},
+      {name:'Thailand',flag:'🇹🇭',scope:'Local',from:3.9,kind:'esim'},
+      {name:'South Korea',flag:'🇰🇷',scope:'Local',from:4.2,kind:'esim'},
+      {name:'Asia',flag:'🌏',scope:'Regional',from:12,kind:'esim'},
+      {name:'Europe',flag:'🇪🇺',scope:'Regional',from:14,kind:'esim'},
+      {name:'Global',flag:'🌍',scope:'Global',from:29,kind:'esim'}
+    ];
+    const plansMap = {
+      Japan:[{t:'3GB / 7天',p:6.5,tag:'流量'},{t:'接码号 · 30天',p:9.9,tag:'手机号'},{t:'10GB / 15天',p:11,tag:'流量'}],
+      'Hong Kong':[{t:'语音号 · 30天',p:12.5,tag:'手机号'},{t:'5GB / 7天',p:7,tag:'流量'}],
+      'United States':[{t:'长期号',p:19,tag:'手机号'},{t:'10GB / 30天',p:15,tag:'流量'}],
+      Thailand:[{t:'5GB / 8天',p:5.5,tag:'流量'}],
+      'South Korea':[{t:'3GB / 5天',p:4.2,tag:'流量'}],
+      Asia:[{t:'10GB / 15天',p:16,tag:'区域流量'}],
+      Europe:[{t:'10GB / 15天',p:14,tag:'区域流量'}],
+      Global:[{t:'20GB / 30天',p:29,tag:'全球流量'}]
+    };
+    let scope='Local', q='', selected=null;
+    function render(){
+      document.getElementById('scope').innerHTML = scopes.map(s=>`<button class="${s===scope?'active':''}" data-s="${s}">${s}</button>`).join('');
+      document.getElementById('scope').querySelectorAll('button').forEach(b=>b.onclick=()=>{scope=b.dataset.s;selected=null;render();});
+      document.getElementById('popular').innerHTML = '<span>Popular</span>' + popular.map(p=>`<button class="chip${q===p.toLowerCase()?' active':''}" data-p="${p}">${p}</button>`).join('');
+      document.getElementById('popular').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{q=b.dataset.p.toLowerCase();document.getElementById('q').value=b.dataset.p;render();});
+      const list = dests.filter(d=>d.scope===scope && (!q || d.name.toLowerCase().includes(q)));
+      document.getElementById('listTitle').textContent = scope + ' destinations';
+      document.getElementById('dests').innerHTML = list.map(d=>`
+        <article class="dest${selected===d.name?' selected':''}" data-n="${d.name}">
+          <div class="flag">${d.flag}</div>
+          <h3>${d.name}</h3>
+          <p>${d.kind==='phone'?'号码 / 流量可选':'eSIM 流量'}</p>
+          <div class="from">From $${d.from.toFixed(2)}</div>
+        </article>`).join('') || '<p style="color:#64748b">无匹配目的地</p>';
+      document.getElementById('dests').querySelectorAll('.dest').forEach(el=>el.onclick=()=>{selected=el.dataset.n;renderPlans();render();});
+      renderPlans();
+    }
+    function renderPlans(){
+      const box=document.getElementById('plans');
+      if(!selected){box.classList.remove('show');return;}
+      box.classList.add('show');
+      document.getElementById('planTitle').textContent = selected + ' · 可选套餐';
+      const plans=plansMap[selected]||[];
+      document.getElementById('planGrid').innerHTML = plans.map(p=>`
+        <article class="plan">
+          <h4>${p.t}</h4>
+          <div class="meta">${p.tag}</div>
+          <div class="row"><span class="price">$${p.p}</span><button class="buy">选择</button></div>
+        </article>`).join('');
+      box.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+    document.getElementById('q').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();render();});
+    render();
+  </script>
+</body>
+</html>

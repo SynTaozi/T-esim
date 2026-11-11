@@ -2,28 +2,30 @@
   <div class="order-lookup-page">
     <SiteHeader />
     <main class="lookup-main container">
-      <section class="lookup-hero">
-        <h1>{{ $t('orderLookup.title') }}</h1>
-        <p>{{ $t('orderLookup.subtitle') }}</p>
-      </section>
+      <div class="lookup-entry">
+        <section class="lookup-hero">
+          <h1>{{ $t('orderLookup.title') }}</h1>
+          <p>{{ $t('orderLookup.subtitle') }}</p>
+        </section>
 
-      <section class="lookup-card">
-        <el-form label-position="top" @submit.prevent="search">
-          <el-form-item :label="$t('orderLookup.email')" required>
-            <el-input
-              v-model="email"
-              type="email"
-              size="large"
-              :placeholder="$t('orderLookup.emailPlaceholder')"
-              clearable
-            />
-          </el-form-item>
-          <el-button type="primary" size="large" :loading="loading" class="lookup-btn" @click="search">
-            {{ $t('orderLookup.search') }}
-          </el-button>
-        </el-form>
-        <p class="lookup-tip">{{ $t('orderLookup.tip') }}</p>
-      </section>
+        <section class="lookup-card">
+          <el-form label-position="top" @submit.prevent="search">
+            <el-form-item :label="$t('orderLookup.email')" required>
+              <el-input
+                v-model="email"
+                type="email"
+                size="large"
+                :placeholder="$t('orderLookup.emailPlaceholder')"
+                clearable
+              />
+            </el-form-item>
+            <el-button type="primary" size="large" :loading="loading" class="lookup-btn" @click="search">
+              {{ $t('orderLookup.search') }}
+            </el-button>
+          </el-form>
+          <p class="lookup-tip">{{ $t('orderLookup.tip') }}</p>
+        </section>
+      </div>
 
       <section v-if="searched" class="result-list">
         <div v-if="!orders.length" class="empty-card">
@@ -116,8 +118,8 @@
             </div>
             <div v-if="order.trackingQrCode" class="qr-block">
               <div class="panel-title">{{ $t('orderLookup.esimOrQr') }}</div>
-              <code class="qr-code">{{ order.trackingQrCode }}</code>
-              <el-button size="small" @click="copyText(order.trackingQrCode)">
+              <EsimQrImage :value="order.trackingQrCode" img-class="lookup-qr-image" :size="220" />
+              <el-button size="small" class="qr-copy" @click="copyText(order.trackingQrCode)">
                 {{ $t('orderLookup.copy') }}
               </el-button>
             </div>
@@ -158,8 +160,8 @@
               </div>
               <div v-if="order.trackingQrCode" class="qr-block">
                 <div class="panel-title">{{ $t('orderLookup.esimOrQr') }}</div>
-                <code class="qr-code">{{ order.trackingQrCode }}</code>
-                <el-button size="small" @click="copyText(order.trackingQrCode)">
+                <EsimQrImage :value="order.trackingQrCode" img-class="lookup-qr-image" :size="220" />
+                <el-button size="small" class="qr-copy" @click="copyText(order.trackingQrCode)">
                   {{ $t('orderLookup.copy') }}
                 </el-button>
               </div>
@@ -196,6 +198,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
+import EsimQrImage from '@/components/EsimQrImage.vue'
 import { orderApi } from '@/api/order'
 import { navigateByPaymentMethod } from '@/utils/stripeCheckout'
 import { getPaymentMethodLabel } from '@/utils/paymentMethodLabel'
@@ -401,36 +404,69 @@ async function continuePay(order: any) {
 <style scoped>
 .order-lookup-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background:
+    radial-gradient(900px 420px at 15% -10%, #d7e2ff 0%, transparent 55%),
+    radial-gradient(700px 380px at 90% 0%, #e8eefc 0%, transparent 50%),
+    linear-gradient(180deg, #f3f6fc 0%, #f5f7fb 100%);
 }
 .lookup-main {
-  padding: 36px 16px 72px;
-  max-width: 760px;
+  max-width: var(--site-content-max-width, 1300px);
+  margin: 0 auto;
+  padding: 52px var(--site-content-padding-x, 24px) 72px;
+}
+.lookup-entry {
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: center;
+}
+.lookup-hero {
+  margin-bottom: 22px;
 }
 .lookup-hero h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  color: #111;
+  margin: 0 0 10px;
+  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #131b2e;
 }
 .lookup-hero p {
-  margin: 0 0 18px;
-  color: #666;
-  font-size: 14px;
-  line-height: 1.5;
+  margin: 0 auto;
+  max-width: 400px;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
 }
 .lookup-card,
 .empty-card {
+  text-align: left;
   background: #fff;
-  border-radius: 10px;
-  padding: 20px;
+  border: 1px solid rgba(0, 62, 199, 0.1);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+.lookup-card :deep(.el-form-item__label) {
+  font-weight: 600;
+  color: #334155;
+}
+.lookup-card :deep(.el-input__wrapper) {
+  border-radius: 12px;
+  background: #fafbff;
+}
+.lookup-card :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #003ec7 inset;
 }
 .lookup-btn {
   width: 100%;
+  border-radius: 12px;
+  font-weight: 700;
 }
 .lookup-tip {
   margin: 12px 0 0;
-  font-size: 13px;
-  color: #999;
+  font-size: 12.5px;
+  color: #94a3b8;
   line-height: 1.5;
 }
 .result-list {
@@ -649,16 +685,14 @@ async function continuePay(order: any) {
   padding-top: 8px;
   border-top: 1px dashed #e8e8e8;
 }
-.qr-code {
-  display: block;
-  margin: 8px 0;
-  padding: 10px;
+.qr-block :deep(.lookup-qr-image) {
+  margin: 10px 0 8px;
   border-radius: 8px;
-  background: #f7f8fa;
+  background: #fff;
   border: 1px solid #eee;
-  font-size: 12px;
-  word-break: break-all;
-  color: #333;
+}
+.qr-copy {
+  margin-top: 4px;
 }
 .muted { color: #999; font-size: 13px; }
 

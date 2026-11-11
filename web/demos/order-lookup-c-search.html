@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>订单查询 · C · Search-first</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #171410;
+      --muted: #6d655c;
+      --line: #e8e2d8;
+      --brand: #c2410c;
+      --bg: #f7f4ef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Instrument Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #efe9df 0%, var(--bg) 42%, #f7f4ef 100%);
+      min-height: 100vh;
+    }
+    .top {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo { font-weight: 700; letter-spacing: -0.03em; }
+    .wrap {
+      max-width: 720px;
+      margin: 48px auto 0;
+      padding: 0 20px 80px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-family: Newsreader, Georgia, serif;
+      font-size: clamp(34px, 6vw, 48px);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .sub {
+      margin: 0 auto 34px;
+      max-width: 460px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .search {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(23,20,16,.07);
+      text-align: left;
+    }
+    .field {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 10px;
+    }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #9a9186;
+      margin-bottom: 4px;
+    }
+    .field input {
+      width: 100%;
+      border: 0;
+      outline: none;
+      font: inherit;
+      font-size: 17px;
+      background: transparent;
+      color: var(--ink);
+    }
+    .btn {
+      flex: 0 0 auto;
+      align-self: stretch;
+      min-width: 112px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--brand);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 18px;
+    }
+    .helpers {
+      margin-top: 18px;
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .helpers a { color: var(--brand); text-decoration: none; font-weight: 600; }
+    .note {
+      margin: 36px auto 0;
+      max-width: 520px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.55);
+      border: 1px dashed #d8cfc2;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      text-align: left;
+    }
+    .badge {
+      position: fixed;
+      top: 14px; right: 14px;
+      background: #171410; color: #fff;
+      font-size: 11px; font-weight: 700;
+      padding: 5px 9px; border-radius: 8px;
+    }
+    @media (max-width: 640px) {
+      .search { flex-direction: column; }
+      .btn { height: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="badge">C · Search-first</div>
+  <header class="top">
+    <div class="logo">Tesim</div>
+    <div style="color:#6d655c;font-size:14px">支持中心</div>
+  </header>
+  <main class="wrap">
+    <h1>订单查询</h1>
+    <p class="sub">输入下单邮箱，马上找到你的 eSIM、流量卡与号码订单。</p>
+    <div class="search">
+      <div class="field">
+        <label for="email">下单邮箱</label>
+        <input id="email" type="email" placeholder="name@example.com" />
+      </div>
+      <button class="btn" type="button">查询</button>
+    </div>
+    <div class="helpers">
+      <span>没有收到确认邮件？检查垃圾箱</span>
+      <a href="#">联系客服</a>
+    </div>
+    <div class="note">
+      使用下单邮箱即可查询；多笔订单会以列表展示。登录用户也可在「我的订单」中查看。
+    </div>
+  </main>
+</body>
+</html>

@@ -171,23 +171,35 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         Product src = require(id);
         AdminProductVO vo = toVO(src, true);
         AdminProductRequest req = new AdminProductRequest();
-        req.setName((vo.getName() == null ? "Copy" : vo.getName()) + " (副本)");
-        req.setNameEn(vo.getNameEn());
+        String baseName = StringUtils.hasText(vo.getNameZh())
+                ? vo.getNameZh()
+                : (StringUtils.hasText(vo.getName()) ? vo.getName() : "Copy");
+        req.setName(baseName + " (副本)");
+        req.setNameZh(baseName + " (副本)");
+        req.setNameEn(StringUtils.hasText(vo.getNameEn()) ? vo.getNameEn() + " (Copy)" : vo.getNameEn());
         req.setDescription(vo.getDescription());
         req.setDescriptionEn(vo.getDescriptionEn());
+        req.setSummaryZh(vo.getSummaryZh());
+        req.setSummaryEn(vo.getSummaryEn());
         req.setFeatures(vo.getFeatures());
         req.setFeaturesEn(vo.getFeaturesEn());
+        req.setNotesZh(vo.getNotesZh());
+        req.setNotesEn(vo.getNotesEn());
         req.setPrice(vo.getPrice());
         req.setOriginalPrice(vo.getOriginalPrice());
         req.setPhysicalCost(vo.getPhysicalCost());
         req.setCostPrice(vo.getCostPrice());
         req.setApplicableRegions(vo.getApplicableRegions());
+        req.setCountries(vo.getCountries());
         req.setDataLimit(vo.getDataLimit());
         req.setValidityDays(vo.getValidityDays());
+        req.setBaseValidityDays(vo.getValidityDays());
         req.setStock(vo.getStock());
         req.setImageUrl(vo.getImageUrl());
         req.setDisplayImageUrl(vo.getDisplayImageUrl());
         req.setStatus(0);
+        req.setItemType(vo.getItemType());
+        req.setProductType(vo.getProductType());
         req.setSubCategoryId(vo.getSubCategoryId());
         req.setCategoryId(vo.getCategoryId());
         req.setPlanType(vo.getPlanType());
@@ -196,6 +208,7 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         req.setVoiceSupport(vo.getVoiceSupport());
         req.setTopupType(vo.getTopupType());
         req.setIsPhysicalCard(vo.getIsPhysicalCard());
+        req.setIsPhysical(vo.getIsPhysicalCard() != null && vo.getIsPhysicalCard() == 1);
         req.setSortOrder(vo.getSortOrder());
         req.setProductKind(vo.getProductKind());
         req.setSpuCode(null);

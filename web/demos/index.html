@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Storefront UI Demos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{--accent:#003ec7;--text:#0f172a;--muted:#64748b;--line:#e2e8f0}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--text);background:#f8fafc}
+    .wrap{max-width:920px;margin:0 auto;padding:40px 20px 80px}
+    h1{margin:0 0 8px;font:800 32px/1.2 Manrope,system-ui}
+    .lead{margin:0 0 28px;color:var(--muted);line-height:1.6}
+    h2{margin:28px 0 12px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    a.card{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;transition:.15s}
+    a.card:hover{border-color:color-mix(in srgb,var(--accent) 40%,#fff);box-shadow:0 10px 24px rgba(15,23,42,.06)}
+    a.card strong{display:block;margin-bottom:4px;font-size:16px}
+    a.card span{display:block;color:var(--muted);font-size:13px;line-height:1.5}
+    .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:999px;background:rgba(0,62,199,.08);color:var(--accent);font-size:11px;font-weight:700}
+    .old .tag{background:#f1f5f9;color:#64748b}
+    .ref{margin-top:6px;font-size:12px;color:#94a3b8}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Storefront UI Demos</h1>
+    <p class="lead">先看订单查询落地页（只有进入态，列表保持不动）。选一版后我再落到 Vue。</p>
+
+    <h2>订单查询 · 进入页（本次）</h2>
+    <div class="grid">
+      <a class="card" href="order-lookup-a-airalo.html">
+        <strong>A · Soft brand hero</strong>
+        <span>浅绿氛围 + 居中标题 + 白卡片表单 + 信任 chips。轻、干净，适合 eSIM 旅行感。</span>
+        <span class="ref">参考：Airalo / Nomad 访客查询气质</span>
+        <span class="tag">NEW</span>
+      </a>
+      <a class="card" href="order-lookup-b-portal.html">
+        <strong>B · Split portal</strong>
+        <span>左右分栏：左说明步骤，右邮箱表单。更像客户门户 / Stripe Customer Portal。</span>
+        <span class="ref">参考：Stripe portal / 企业客服门户</span>
+        <span class="tag">NEW</span>
+      </a>
+      <a class="card" href="order-lookup-c-search.html">
+        <strong>C · Search-first</strong>
+        <span>大标题 + 超大搜索条（邮箱输入与按钮一体）。进入即行动，最不像「普通表单页」。</span>
+        <span class="ref">参考：Shopify / Amazon 找订单</span>
+        <span class="tag">NEW</span>
+      </a>
+      <a class="card" href="order-lookup-d-trust.html">
+        <strong>D · Trust card</strong>
+        <span>单卡片居中 + 毛玻璃 + 隐私/速度/完整三格。沉稳、可信，适合支付后回查。</span>
+        <span class="ref">参考：Apple / Linear 式信任卡片</span>
+        <span class="tag">NEW</span>
+      </a>
+    </div>
+
+    <h2>产品中心筛选（旧）</h2>
+    <div class="grid old">
+      <a class="card" href="products-filter-d-airalo.html">
+        <strong>D · Airalo 式</strong>
+        <span>目的地优先。</span>
+        <span class="tag">OLD</span>
+      </a>
+      <a class="card" href="products-filter-e-nomad.html">
+        <strong>E · Nomad 式</strong>
+        <span>吸顶搜索。</span>
+        <span class="tag">OLD</span>
+      </a>
+      <a class="card" href="products-filter-f-holafly.html">
+        <strong>F · Holafly 式</strong>
+        <span>热门目的地画廊。</span>
+        <span class="tag">OLD</span>
+      </a>
+      <a class="card" href="products-filter-g-minimal.html">
+        <strong>G · 极简目录</strong>
+        <span>分段切换。</span>
+        <span class="tag">OLD</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

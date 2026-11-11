@@ -28,9 +28,10 @@
             <StatusTag :status="row.status" :label="statusLabel(row.status)" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="$router.push(`/products/edit/${row.id}`)">编辑</el-button>
+            <el-button link type="primary" :loading="copyingId === row.id" @click="copyProduct(row)">复制</el-button>
             <el-button link type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -52,12 +53,15 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { productApi } from '@/api/product'
 
+const router = useRouter()
 const loading = ref(false)
+const copyingId = ref<number | null>(null)
 const rows = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -98,6 +102,30 @@ async function load() {
     total.value = 0
   } finally {
     loading.value = false
+  }
+}
+
+async function copyProduct(row: { id: number; name?: string }) {
+  await ElMessageBox.confirm(
+    `确认复制产品「${row.name || row.id}」？将生成一份下架状态的副本，名称带「(副本)」。`,
+    '复制产品',
+    { type: 'info', confirmButtonText: '复制' }
+  )
+  copyingId.value = row.id
+  try {
+    const res = await productApi.copy(row.id)
+    if (res && typeof res.code === 'number' && res.code !== 200) {
+      ElMessage.error(res.message || '复制失败')
+      return
+    }
+    const created = (res as any)?.data
+    ElMessage.success('已复制')
+    await load()
+    if (created?.id) {
+      await router.push(`/products/edit/${created.id}`)
+    }
+  } finally {
+    copyingId.value = null
   }
 }
 
