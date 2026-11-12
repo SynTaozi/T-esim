@@ -3,6 +3,7 @@
     <router-view v-slot="{ Component, route }">
       <component :is="Component" :key="route.path" />
     </router-view>
+    <LiveChatWidget />
     <PageRouteLoading v-if="navigationStore.isRouteLoading" />
   </div>
 </template>
@@ -13,6 +14,7 @@ import { useThemeStore } from '@/stores/theme'
 import { useNavigationStore } from '@/stores/navigation'
 import { themeApi } from '@/api/theme'
 import PageRouteLoading from '@/components/PageRouteLoading.vue'
+import LiveChatWidget from '@/components/LiveChatWidget.vue'
 
 const themeStore = useThemeStore()
 const navigationStore = useNavigationStore()

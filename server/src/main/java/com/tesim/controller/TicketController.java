@@ -41,6 +41,6 @@ public class TicketController {
 
     @PostMapping("/{id}/replies")
     public ApiResponse<TicketVO> followUp(@PathVariable Long id, @RequestBody TicketReplyRequest body) {
-        return ApiResponse.ok(ticketAppService.followUp(id, body == null ? null : body.getContent()));
+        return ApiResponse.ok(ticketAppService.followUp(id, body));
     }
 }

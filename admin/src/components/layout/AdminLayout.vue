@@ -37,6 +37,7 @@
             <el-menu-item index="/product-categories">产品分类</el-menu-item>
             <el-menu-item index="/orders">订单管理</el-menu-item>
             <el-menu-item index="/tickets">工单管理</el-menu-item>
+            <el-menu-item index="/live-chat">在线咨询</el-menu-item>
           </el-sub-menu>
 
           <div v-show="!collapsed" class="nav-group">配置</div>
@@ -128,6 +129,7 @@ const pageTitleMap: Record<string, string> = {
   '/product-subcategories': '产品分类',
   '/orders': '订单管理',
   '/tickets': '工单管理',
+  '/live-chat': '在线咨询',
   '/payment-methods': '支付方式',
   '/faq': '常见问题管理',
   '/tutorials': '教程管理',
@@ -159,7 +161,9 @@ function handleLogout() {
 <style scoped>
 .admin-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: var(--admin-bg);
 }
 
@@ -264,8 +268,10 @@ function handleLogout() {
 .main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .top-header {
@@ -303,7 +309,8 @@ function handleLogout() {
 
 .content {
   flex: 1;
-  padding: 20px 24px 32px;
+  min-height: 0;
+  padding: 20px 24px 24px;
   overflow: auto;
 }
 </style>

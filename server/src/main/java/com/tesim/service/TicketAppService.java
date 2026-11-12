@@ -3,7 +3,7 @@ package com.tesim.service;
 import com.tesim.common.BizException;
 import com.tesim.common.PageResult;
 import com.tesim.dto.ticket.CreateTicketRequest;
-import com.tesim.dto.ticket.TicketMessageVO;
+import com.tesim.dto.ticket.TicketReplyRequest;
 import com.tesim.dto.ticket.TicketVO;
 import com.tesim.entity.Ticket;
 import com.tesim.entity.TicketMessage;
@@ -36,7 +36,5 @@ public interface TicketAppService {
 
 
 
-    TicketVO followUp(Long id, String content);
-
-
+    TicketVO followUp(Long id, TicketReplyRequest req);
 }

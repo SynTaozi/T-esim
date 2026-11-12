@@ -10,101 +10,96 @@
         </el-button>
       </div>
 
-      <div class="ticket-info" v-if="ticket">
-        <div class="info-header">
-          <div class="info-title">
+      <div v-if="ticket" class="chat-card">
+        <div class="chat-header">
+          <div class="chat-header-main">
             <h1>{{ ticket.subject }}</h1>
-            <div class="info-tags">
-              <el-tag>{{ getTypeText(ticket.type) }}</el-tag>
-              <el-tag :type="getPriorityType(ticket.priority)">{{ getPriorityText(ticket.priority) }}</el-tag>
-              <el-tag :type="getStatusType(ticket.status)">{{ getStatusText(ticket.status) }}</el-tag>
-            </div>
+            <p>
+              {{ ticket.ticketNo }}
+              <span v-if="ticket.type"> · {{ getTypeText(ticket.type) }}</span>
+              <span> · {{ ticket.createdAt }}</span>
+            </p>
           </div>
-          <div class="info-meta">
-            <p>{{ $t('ticketDetail.ticketNo') }}：{{ ticket.ticketNo }}</p>
-            <p>{{ $t('ticketDetail.createTime') }}：{{ ticket.createdAt }}</p>
+          <div class="chat-header-tags">
+            <el-tag size="small" :type="getPriorityType(ticket.priority)">{{ getPriorityText(ticket.priority) }}</el-tag>
+            <el-tag size="small" :type="getStatusType(ticket.status)">{{ getStatusText(ticket.status) }}</el-tag>
           </div>
         </div>
 
-        <div class="ticket-content">
-          <div class="content-item user-content">
-            <div class="content-header">
-              <el-avatar :size="40">{{ ticket.userId || 'U' }}</el-avatar>
-              <span class="content-author">{{ $t('ticketDetail.user') }}</span>
-              <span class="content-time">{{ ticket.createdAt }}</span>
-            </div>
-            <div class="content-body">
-              <p class="content-text">{{ mainMessage.text }}</p>
-              <div v-if="mainMessage.images.length" class="content-images">
-                <el-image
-                  v-for="(src, i) in mainMessage.images"
-                  :key="src + i"
-                  :src="src"
-                  :preview-src-list="mainMessage.images"
-                  :initial-index="i"
-                  fit="cover"
-                  class="msg-image"
-                />
-              </div>
-            </div>
-          </div>
-
+        <div class="chat-body">
           <div
-            v-for="(msg, idx) in replyMessages"
-            :key="msg.id || idx"
-            class="content-item"
-            :class="msg.admin ? 'admin-content' : 'user-content'"
+            v-for="m in thread"
+            :key="m.key"
+            class="chat-row"
+            :class="{ me: m.mine }"
           >
-            <div class="content-header">
-              <el-avatar
-                :size="40"
-                :class="{ 'admin-avatar': msg.admin }"
-              >
-                {{ msg.admin ? $t('ticketDetail.serviceInitial') : (ticket.userId || 'U') }}
-              </el-avatar>
-              <span class="content-author">
-                <template v-if="msg.admin">
-                  {{ $t('ticketDetail.customerService') }}
-                  <span v-if="msg.repliedBy"> {{ msg.repliedBy }}</span>
-                </template>
-                <template v-else>{{ $t('ticketDetail.user') }}</template>
-              </span>
-              <span class="content-time">{{ msg.createdAt }}</span>
+            <div class="av" :class="{ mine: m.mine }">
+              {{ m.mine ? 'U' : $t('ticketDetail.serviceInitial') }}
             </div>
-            <div class="content-body">
-              <p class="content-text">{{ msg.parsed.text }}</p>
-              <div v-if="msg.parsed.images.length" class="content-images">
-                <el-image
-                  v-for="(src, i) in msg.parsed.images"
-                  :key="src + i"
-                  :src="src"
-                  :preview-src-list="msg.parsed.images"
-                  :initial-index="i"
-                  fit="cover"
-                  class="msg-image"
-                />
+            <div class="bubble-wrap">
+              <div class="bubble" :class="{ mine: m.mine }">
+                <p v-if="m.text" class="bubble-text">{{ m.text }}</p>
+                <div v-if="m.images.length" class="bubble-images">
+                  <el-image
+                    v-for="(src, i) in m.images"
+                    :key="src + i"
+                    :src="src"
+                    :preview-src-list="m.images"
+                    :initial-index="i"
+                    fit="cover"
+                    class="bubble-img"
+                  />
+                </div>
+              </div>
+              <div class="bubble-time">
+                <template v-if="m.mine">{{ $t('ticketDetail.user') }} · </template>
+                <template v-else>
+                  {{ $t('ticketDetail.customerService') }}{{ m.by ? ` · ${m.by}` : '' }} ·
+                </template>
+                {{ m.createdAt }}
               </div>
             </div>
           </div>
         </div>
 
-        <div class="follow-up" v-if="ticket.status !== 'CLOSED'">
-          <h3>{{ $t('ticketDetail.followUpTitle') }}</h3>
-          <el-input
-            v-model="followUpContent"
-            type="textarea"
-            :rows="4"
-            :placeholder="$t('ticketDetail.followUpPlaceholder')"
-            maxlength="2000"
-            show-word-limit
-          />
-          <div class="follow-up-actions">
-            <el-button type="primary" :loading="submitting" @click="submitFollowUp">
-              {{ $t('ticketDetail.followUpSubmit') }}
-            </el-button>
+        <div v-if="ticket.status !== 'CLOSED'" class="chat-composer">
+          <div class="composer-main">
+            <el-input
+              v-model="followUpContent"
+              type="textarea"
+              :rows="3"
+              :placeholder="$t('ticketDetail.followUpPlaceholder')"
+              maxlength="2000"
+              resize="none"
+            />
+            <div class="composer-upload">
+              <el-upload
+                v-model:file-list="fileList"
+                list-type="picture-card"
+                :auto-upload="false"
+                :limit="5"
+                multiple
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                :before-upload="beforeUpload"
+                :on-exceed="handleExceed"
+                :on-preview="handlePreview"
+              >
+                <el-icon><Plus /></el-icon>
+              </el-upload>
+              <p class="upload-hint">{{ $t('newTicket.imageUploadHint') }}</p>
+            </div>
           </div>
+          <el-button type="primary" class="send-btn" :loading="submitting" @click="submitFollowUp">
+            {{ $t('ticketDetail.followUpSubmit') }}
+          </el-button>
+          <el-image-viewer
+            v-if="previewVisible"
+            :url-list="previewUrls"
+            :initial-index="previewIndex"
+            @close="previewVisible = false"
+          />
         </div>
-        <div class="closed-tip" v-else>
+        <div v-else class="closed-tip">
           {{ $t('ticketDetail.closedTip') }}
         </div>
       </div>
@@ -116,10 +111,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadFile, UploadRawFile } from 'element-plus'
 import SiteHeader from '@/components/SiteHeader.vue'
-import { getTicketById, followUpTicket } from '@/api/ticket'
+import { getTicketById, followUpTicket, uploadTicketImage } from '@/api/ticket'
 import { useAuthStore } from '@/stores/auth'
 import { navigateToLogin } from '@/utils/authNavigation'
 import { splitTicketContent } from '@/utils/ticketContent'
@@ -131,14 +127,77 @@ const authStore = useAuthStore()
 const ticket = ref<any>(null)
 const followUpContent = ref('')
 const submitting = ref(false)
+const fileList = ref<UploadFile[]>([])
+const previewVisible = ref(false)
+const previewUrls = ref<string[]>([])
+const previewIndex = ref(0)
 
-const mainMessage = computed(() => splitTicketContent(ticket.value?.content))
-const replyMessages = computed(() =>
-  (ticket.value?.replies || []).map((msg: any) => ({
-    ...msg,
-    parsed: splitTicketContent(msg.content)
-  }))
-)
+function beforeUpload(rawFile: UploadRawFile): boolean {
+  const okType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(rawFile.type)
+  if (!okType) {
+    ElMessage.error(t('newTicket.imageTypeError'))
+    return false
+  }
+  if (rawFile.size > 5 * 1024 * 1024) {
+    ElMessage.error(t('newTicket.fileSizeError'))
+    return false
+  }
+  return true
+}
+
+function handleExceed() {
+  ElMessage.warning(t('newTicket.maxFilesHint'))
+}
+
+function handlePreview(file: UploadFile) {
+  if (file.url) {
+    previewUrls.value = [file.url]
+  } else if (file.raw) {
+    previewUrls.value = [URL.createObjectURL(file.raw)]
+  } else {
+    return
+  }
+  previewIndex.value = 0
+  previewVisible.value = true
+}
+
+type ThreadMsg = {
+  key: string
+  mine: boolean
+  text: string
+  images: string[]
+  createdAt?: string
+  by?: string
+}
+
+/** 用户端：自己的消息在右侧；客服在左侧（与 Intercom 用户视角一致：我=用户） */
+const thread = computed<ThreadMsg[]>(() => {
+  if (!ticket.value) return []
+  const list: ThreadMsg[] = []
+  const first = splitTicketContent(ticket.value.content)
+  if (first.text || first.images.length) {
+    list.push({
+      key: 'main',
+      mine: true,
+      text: first.text,
+      images: first.images,
+      createdAt: ticket.value.createdAt
+    })
+  }
+  for (const msg of ticket.value.replies || []) {
+    const parsed = splitTicketContent(msg.content)
+    const isAdmin = !!msg.admin || String(msg.senderType || '').toUpperCase() === 'ADMIN'
+    list.push({
+      key: String(msg.id || `${msg.createdAt}-${list.length}`),
+      mine: !isAdmin,
+      text: parsed.text,
+      images: parsed.images,
+      createdAt: msg.createdAt,
+      by: msg.repliedBy
+    })
+  }
+  return list
+})
 
 function goBack() {
   router.push({ path: '/profile', query: { tab: 'tickets' } })
@@ -208,7 +267,6 @@ function loadTicket() {
       ticket.value = res.data
     })
     .catch((err: any) => {
-      console.error('Failed to load ticket', err)
       if (!handleAuthError(err)) {
         ElMessage.error(err.message || t('ticketDetail.loadFailed'))
       }
@@ -216,19 +274,29 @@ function loadTicket() {
 }
 
 async function submitFollowUp() {
-  if (!followUpContent.value.trim()) {
+  const text = followUpContent.value.trim()
+  const hasFiles = fileList.value.some((f) => !!f.raw)
+  if (!text && !hasFiles) {
     ElMessage.warning(t('ticketDetail.followUpRequired'))
     return
   }
   submitting.value = true
   try {
-    const res: any = await followUpTicket(ticket.value.id, followUpContent.value.trim())
+    const imageUrls: string[] = []
+    for (const f of fileList.value) {
+      if (!f.raw) continue
+      const up: any = await uploadTicketImage(f.raw)
+      const url = up?.data?.url || up?.url
+      if (url) imageUrls.push(url)
+    }
+    const res: any = await followUpTicket(ticket.value.id, text, imageUrls)
     if (res.code !== 200) {
       ElMessage.error(res.message || t('ticketDetail.followUpFailed'))
       return
     }
     ticket.value = res.data
     followUpContent.value = ''
+    fileList.value = []
     ElMessage.success(t('ticketDetail.followUpSuccess'))
   } catch (err: any) {
     if (!handleAuthError(err)) {
@@ -247,189 +315,223 @@ onMounted(() => {
 <style scoped>
 .ticket-detail-page {
   min-height: 100vh;
-  background: var(--bg-primary);
+  background:
+    radial-gradient(900px 420px at 50% -120px, rgba(0, 62, 199, 0.1), transparent 60%),
+    linear-gradient(180deg, #f3f6fc 0%, #f5f7fb 100%);
 }
 
 .main-content {
-  padding: 40px 20px;
-  max-width: 900px;
+  padding: 28px 16px 64px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
-.page-header :deep(.el-button) {
-  background: var(--bg-hover);
-  border-color: var(--border-default);
-  color: var(--text-secondary);
-}
-
-.page-header :deep(.el-button:hover) {
-  background: var(--accent-muted);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-
-.ticket-info {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 32px;
-  border: 1px solid var(--border-default);
-}
-
-.info-header {
-  border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 24px;
-  margin-bottom: 24px;
-}
-
-.info-title h1 {
-  font-size: 24px;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-}
-
-.info-tags {
-  display: flex;
-  gap: 8px;
-}
-
-.info-tags :deep(.el-tag) {
-  background: var(--accent-muted);
-  border: none;
-  color: var(--accent-primary);
-}
-
-.info-tags :deep(.el-tag--success) {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-}
-
-.info-tags :deep(.el-tag--warning) {
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
-}
-
-.info-tags :deep(.el-tag--danger) {
-  background: rgba(244, 63, 94, 0.15);
-  color: #f87171;
-}
-
-.info-tags :deep(.el-tag--info) {
-  background: var(--bg-hover);
-  color: var(--text-muted);
-}
-
-.info-meta {
-  margin-top: 12px;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.info-meta p {
-  margin: 4px 0;
-}
-
-.ticket-content {
+.chat-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  min-height: 620px;
 }
 
-.content-item {
-  padding: 20px;
-  border-radius: 10px;
-}
-
-.user-content {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-subtle);
-}
-
-.admin-content {
-  background: var(--accent-muted);
-  border: 1px solid rgba(225, 29, 72, 0.2);
-}
-
-.content-header {
+.chat-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
-  align-items: center;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
-.content-header :deep(.el-avatar) {
-  background: var(--accent-primary);
-  color: #fff;
-}
-
-.content-author {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.admin-avatar {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
-}
-
-.content-time {
-  color: var(--text-muted);
-  font-size: 13px;
-  margin-left: auto;
-}
-
-.content-body {
-  line-height: 1.8;
-  color: var(--text-secondary);
-}
-
-.content-text {
+.chat-header-main h1 {
   margin: 0;
-  white-space: pre-wrap;
+  font-size: 17px;
+  line-height: 1.35;
+  color: #111827;
+  letter-spacing: -0.01em;
 }
 
-.content-images {
+.chat-header-main p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.chat-header-tags {
   display: flex;
+  gap: 6px;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.msg-image {
-  width: 112px;
-  height: 112px;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  cursor: zoom-in;
-}
-
-.follow-up {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.follow-up h3 {
-  font-size: 16px;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-}
-
-.follow-up-actions {
-  margin-top: 12px;
-  display: flex;
   justify-content: flex-end;
 }
 
-.closed-tip {
-  margin-top: 24px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--bg-hover);
-  color: var(--text-muted);
+.chat-body {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #fafafa;
+  overflow: auto;
+  max-height: 52vh;
+}
+
+.chat-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  max-width: 88%;
+}
+
+.chat-row.me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.av.mine {
+  background: #111827;
+  color: #fff;
+}
+
+.bubble-wrap {
+  min-width: 0;
+}
+
+.bubble {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px 16px 16px 4px;
+  padding: 12px 14px;
   font-size: 14px;
+  line-height: 1.55;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.bubble.mine {
+  background: #003ec7;
+  color: #fff;
+  border-color: transparent;
+  border-radius: 16px 16px 4px 16px;
+}
+
+.bubble-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bubble-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: zoom-in;
+}
+
+.bubble:not(.mine) .bubble-img {
+  border-color: #e5e7eb;
+}
+
+.bubble-time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.chat-row.me .bubble-time {
+  text-align: right;
+}
+
+.chat-composer {
+  padding: 14px;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.composer-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-composer :deep(.el-textarea__inner) {
+  border-radius: 14px;
+  min-height: 72px !important;
+  box-shadow: none;
+}
+
+.composer-upload :deep(.el-upload--picture-card),
+.composer-upload :deep(.el-upload-list--picture-card .el-upload-list__item) {
+  width: 72px;
+  height: 72px;
+}
+
+.upload-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.send-btn {
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+  padding: 0 18px;
+  align-self: end;
+}
+
+.closed-tip {
+  margin: 0;
+  padding: 14px 18px;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 13px;
+  background: #f9fafb;
+}
+
+@media (max-width: 640px) {
+  .chat-composer {
+    grid-template-columns: 1fr;
+  }
+  .send-btn {
+    width: 100%;
+  }
+  .chat-row {
+    max-width: 94%;
+  }
 }
 </style>

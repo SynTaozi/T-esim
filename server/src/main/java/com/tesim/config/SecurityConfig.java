@@ -73,7 +73,12 @@ public class SecurityConfig {
                                 "/wallet/balance",
                                 "/balance",
                                 "/member/balance",
-                                "/uploads/**"
+                                "/uploads/**",
+                                "/chat/**",
+                                "/ws/chat",
+                                "/ws/chat/**",
+                                "/ws/admin/chat",
+                                "/ws/admin/chat/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

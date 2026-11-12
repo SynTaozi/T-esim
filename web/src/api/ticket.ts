@@ -26,9 +26,9 @@ export function getTicketById(id: number) {
   return api.get(`/tickets/${id}`)
 }
 
-/** 用户追问 */
-export function followUpTicket(id: number, content: string) {
-  return api.post(`/tickets/${id}/replies`, { content })
+/** 用户追问（可附 imageUrls） */
+export function followUpTicket(id: number, content: string, imageUrls: string[] = []) {
+  return api.post(`/tickets/${id}/replies`, { content, imageUrls })
 }
 
 // 管理员接口

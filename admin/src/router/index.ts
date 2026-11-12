@@ -21,6 +21,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'product-subcategories', redirect: '/product-categories' },
       { path: 'orders', name: 'Orders', component: () => import('@/views/Orders.vue'), meta: { title: '订单管理' } },
       { path: 'tickets', name: 'Tickets', component: () => import('@/views/Tickets.vue'), meta: { title: '工单管理' } },
+      { path: 'live-chat', name: 'LiveChat', component: () => import('@/views/LiveChat.vue'), meta: { title: '在线咨询' } },
       { path: 'users', name: 'Users', component: () => import('@/views/Users.vue'), meta: { title: '用户管理' } },
       { path: 'admin-account', name: 'AdminAccount', component: () => import('@/views/AdminAccount.vue'), meta: { title: '管理员账号' } },
       { path: 'payment-methods', name: 'PaymentMethods', component: () => import('@/views/PaymentMethods.vue'), meta: { title: '支付方式' } },

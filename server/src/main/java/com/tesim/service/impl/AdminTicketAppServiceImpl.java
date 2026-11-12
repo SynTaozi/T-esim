@@ -55,23 +55,26 @@ public class AdminTicketAppServiceImpl implements AdminTicketAppService {
 
     @Transactional
     public TicketVO reply(Long id, AdminTicketReplyRequest req) {
-        if (req == null || !StringUtils.hasText(req.getReply())) {
-            throw new BizException("请输入回复内容");
+        String replyText = req == null ? null : req.resolveReply();
+        boolean hasImages = req != null && req.getImageUrls() != null
+                && req.getImageUrls().stream().anyMatch(StringUtils::hasText);
+        if (!StringUtils.hasText(replyText) && !hasImages) {
+            throw new BizException("请输入回复内容或上传图片");
         }
         Ticket ticket = require(id);
         if ("CLOSED".equalsIgnoreCase(ticket.getStatus())) {
             throw new BizException("工单已关闭");
         }
-        Long adminId = SecurityUtils.requireMemberId();
-        Member admin = memberService.getById(adminId);
+        Long adminId = SecurityUtils.memberIdOrNull();
+        Member admin = adminId != null ? memberService.getById(adminId) : null;
         TicketMessage msg = new TicketMessage();
         msg.setTicketId(ticket.getId());
         msg.setSenderType("ADMIN");
         msg.setSenderId(adminId);
         msg.setSenderName(StringUtils.hasText(req.getRepliedBy())
                 ? req.getRepliedBy()
-                : (admin != null ? admin.getUsername() : "Admin"));
-        msg.setContent(req.getReply().trim());
+                : (admin != null && StringUtils.hasText(admin.getUsername()) ? admin.getUsername() : "Admin"));
+        msg.setContent(appendImageUrls(replyText == null ? "" : replyText, req.getImageUrls()));
         ticketMessageService.save(msg);
 
         ticket.setStatus("OPEN");
@@ -80,7 +83,8 @@ public class AdminTicketAppServiceImpl implements AdminTicketAppService {
 
         if (ticket.getMemberId() != null) {
             Member owner = memberService.getById(ticket.getMemberId());
-            businessMailFacade.sendTicketReply(ticket, owner, req.getReply().trim(), msg.getSenderName());
+            businessMailFacade.sendTicketReply(ticket, owner,
+                    StringUtils.hasText(replyText) ? replyText : "[图片]", msg.getSenderName());
         }
         return toVO(ticket, true);
     }
@@ -140,5 +144,23 @@ public class AdminTicketAppServiceImpl implements AdminTicketAppService {
 
     private static String format(LocalDateTime t) {
         return t == null ? null : FMT.format(t);
+    }
+
+    private static String appendImageUrls(String content, List<String> imageUrls) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return content;
+        }
+        StringBuilder sb = new StringBuilder(content == null ? "" : content);
+        sb.append("\n\n__IMAGES__\n");
+        for (String url : imageUrls) {
+            if (!StringUtils.hasText(url)) {
+                continue;
+            }
+            String u = url.trim();
+            if (u.startsWith("/api/uploads/") || u.startsWith("/uploads/")) {
+                sb.append(u).append('\n');
+            }
+        }
+        return sb.toString().trim();
     }
 }

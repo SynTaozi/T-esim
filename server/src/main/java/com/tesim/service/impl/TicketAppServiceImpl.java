@@ -10,6 +10,7 @@ import com.tesim.common.BizException;
 import com.tesim.common.PageResult;
 import com.tesim.dto.ticket.CreateTicketRequest;
 import com.tesim.dto.ticket.TicketMessageVO;
+import com.tesim.dto.ticket.TicketReplyRequest;
 import com.tesim.dto.ticket.TicketVO;
 import com.tesim.entity.Member;
 import com.tesim.entity.Ticket;
@@ -101,9 +102,12 @@ public class TicketAppServiceImpl implements TicketAppService {
     }
 
     @Transactional
-    public TicketVO followUp(Long id, String content) {
-        if (!StringUtils.hasText(content)) {
-            throw new BizException("请输入内容");
+    public TicketVO followUp(Long id, TicketReplyRequest req) {
+        String content = req == null || req.getContent() == null ? "" : req.getContent().trim();
+        List<String> imageUrls = req == null ? null : req.getImageUrls();
+        boolean hasImages = imageUrls != null && imageUrls.stream().anyMatch(StringUtils::hasText);
+        if (!StringUtils.hasText(content) && !hasImages) {
+            throw new BizException("请输入内容或上传图片");
         }
         Ticket ticket = requireOwned(id);
         if ("CLOSED".equals(ticket.getStatus())) {
@@ -115,7 +119,7 @@ public class TicketAppServiceImpl implements TicketAppService {
         msg.setSenderType("USER");
         msg.setSenderId(memberId);
         msg.setSenderName("User");
-        msg.setContent(content.trim());
+        msg.setContent(appendImageUrls(content, imageUrls));
         ticketMessageService.save(msg);
 
         ticket.setStatus("OPEN");
