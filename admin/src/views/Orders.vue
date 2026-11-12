@@ -37,8 +37,8 @@
               type="success"
               :disabled="!canFulfill(row)"
               @click.stop="openFulfill(row)"
-            >发货</el-button>
-            <el-button link @click.stop="resend(row.id)">重发通知</el-button>
+            >{{ fulfillLabel(row) }}</el-button>
+            <el-button link :disabled="!hasShipping(row)" @click.stop="resend(row.id)">重发通知</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -54,14 +54,14 @@
       </div>
     </div>
 
-    <el-drawer v-model="visible" title="订单详情" size="520px">
+    <el-drawer v-model="visible" title="订单详情" size="560px">
       <template v-if="detail">
         <p><b>订单号：</b>{{ detail.orderNo }}</p>
         <p><b>买家：</b>{{ detail.guest ? '游客' : '会员' }}<span v-if="detail.memberId">（ID {{ detail.memberId }}）</span></p>
         <p><b>状态：</b><StatusTag :status="detail.rawStatus || detail.status" /></p>
         <p><b>金额：</b>{{ detail.payableAmount ?? detail.totalAmount }} {{ detail.currency || 'USD' }}</p>
         <p><b>邮箱：</b>{{ detail.buyerEmail || detail.email }}</p>
-        <p v-if="detail.shippingCarrier || detail.trackingNumber"><b>物流：</b>{{ detail.shippingCarrier || '-' }} / {{ detail.trackingNumber || '-' }}</p>
+        <p v-if="detail.shippingAddress"><b>收货地址：</b>{{ detail.shippingAddress }}</p>
         <el-divider />
         <el-table :data="detail.items || []" size="small">
           <el-table-column prop="productName" label="商品" />
@@ -69,7 +69,6 @@
           <el-table-column prop="price" label="单价" width="90" />
         </el-table>
         <el-divider />
-        <el-button v-if="canFulfill(detail)" type="success" style="width:100%;margin-bottom:12px" @click="openFulfill(detail)">手动发货</el-button>
         <el-select v-model="newStatus" placeholder="更新状态" style="width:100%;margin-bottom:8px">
           <el-option v-for="s in statuses" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
@@ -77,9 +76,12 @@
       </template>
     </el-drawer>
 
-    <el-drawer v-model="fulfillVisible" title="手动发货" size="520px" destroy-on-close>
+    <el-drawer v-model="fulfillVisible" :title="fulfillLabel(fulfillRow)" size="520px" destroy-on-close>
       <template v-if="fulfillRow">
-        <p class="fulfill-tip">订单 {{ fulfillRow.orderNo }} — 至少填写物流单号或上传激活二维码图片之一。</p>
+        <p class="fulfill-tip">
+          订单 {{ fulfillRow.orderNo }} — 至少填写物流单号或上传激活二维码图片之一。
+          <span v-if="hasShipping(fulfillRow)">已发货订单可再次提交以更新物流/激活信息并重新通知买家。</span>
+        </p>
         <el-form label-position="top" class="fulfill-form">
           <el-form-item label="承运商">
             <el-select v-model="shipForm.shippingCarrier" clearable placeholder="可选" style="width:100%">
@@ -145,7 +147,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, type UploadRequestOptions } from 'element-plus'
+import { ElMessage, ElMessageBox, type UploadRequestOptions } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { orderApi } from '@/api/order'
@@ -187,9 +189,30 @@ const qrPreviewSrc = computed(() => {
   return u
 })
 
+function hasShipping(row: any) {
+  if (!row) return false
+  return !!(
+    row.trackingNumber
+    || row.shippingCarrier
+    || row.trackingQrCode
+    || row.shippingPhone
+    || row.shippedAt
+    || String(row.rawStatus || '').toUpperCase() === 'SHIPPED'
+    || Number(row.status) === 2
+  )
+}
+
 function canFulfill(row: any) {
-  const s = String(row?.rawStatus || row?.status || '').toUpperCase()
-  return ['PAID', 'PROCESSING', 'FULFILLING', 'SHIPPED', '1', '2'].includes(s)
+  if (!row) return false
+  const raw = String(row.rawStatus || '').toUpperCase()
+  if (['PENDING_PAYMENT', 'CANCELLED', 'CANCELED', '0', '4'].includes(raw)) return false
+  if (['PAID', 'PROCESSING', 'FULFILLING', 'SHIPPED', 'COMPLETED', '1', '2', '3'].includes(raw)) return true
+  const n = Number(row.status)
+  return n === 1 || n === 2 || n === 3
+}
+
+function fulfillLabel(row: any) {
+  return hasShipping(row) ? '更新发货' : '发货'
 }
 
 async function load() {
@@ -223,13 +246,20 @@ async function updateStatus() {
   load()
 }
 
-function openFulfill(row: any) {
-  fulfillRow.value = row
-  shipForm.shippingCarrier = row.shippingCarrier || ''
-  shipForm.trackingNumber = row.trackingNumber || ''
-  shipForm.shippingPhone = ''
-  shipForm.trackingQrCode = row.trackingQrCode || ''
-  shipForm.shippingRemark = ''
+async function openFulfill(row: any) {
+  let data = row
+  try {
+    const res = await orderApi.get(row.id)
+    if (res?.data) data = res.data
+  } catch {
+    // 列表行数据兜底
+  }
+  fulfillRow.value = data
+  shipForm.shippingCarrier = data.shippingCarrier || ''
+  shipForm.trackingNumber = data.trackingNumber || ''
+  shipForm.shippingPhone = data.shippingPhone || ''
+  shipForm.trackingQrCode = data.trackingQrCode || ''
+  shipForm.shippingRemark = data.shippingRemark || ''
   visible.value = false
   fulfillVisible.value = true
 }
@@ -277,9 +307,7 @@ async function confirmFulfill() {
     })
     ElMessage.success(res?.data?.message || res?.message || '发货成功')
     fulfillVisible.value = false
-    if (detail.value?.id === fulfillRow.value.id) {
-      await openDetail(fulfillRow.value)
-    }
+    await openDetail(fulfillRow.value)
     await load()
   } catch (e: any) {
     ElMessage.error(e?.message || '发货失败')
@@ -289,6 +317,11 @@ async function confirmFulfill() {
 }
 
 async function resend(id: number) {
+  await ElMessageBox.confirm(
+    '确认向买家重新发送发货通知邮件？',
+    '重发通知',
+    { type: 'warning', confirmButtonText: '确认重发', cancelButtonText: '取消' }
+  )
   await orderApi.resendNotification(id)
   ElMessage.success('已重发')
 }

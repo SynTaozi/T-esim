@@ -48,10 +48,6 @@ public interface AdminProductAppService {
 
 
 
-    AdminProductVO copy(Long id);
-
-
-
     void patchStatus(Long id, Integer status);
 
 

@@ -8,7 +8,6 @@ export const productApi = {
   update: (id: number, data: unknown) => api.put(`/admin/products/${id}`, data) as Promise<ApiResult<any>>,
   remove: (id: number) => api.delete(`/admin/products/${id}`) as Promise<ApiResult<void>>,
   batchDelete: (ids: number[]) => api.delete('/admin/products/batch', { data: ids }) as Promise<ApiResult<void>>,
-  copy: (id: number) => api.post(`/admin/products/${id}/copy`) as Promise<ApiResult<any>>,
   updateStatus: (id: number, status: string) =>
     api.patch(`/admin/products/${id}/status`, null, { params: { status } }) as Promise<ApiResult<void>>,
   batchStatus: (ids: number[], status: string) =>

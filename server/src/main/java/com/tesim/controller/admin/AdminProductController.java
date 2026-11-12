@@ -83,11 +83,6 @@ public class AdminProductController {
         return ApiResponse.ok("批量删除成功", null);
     }
 
-    @PostMapping("/{id}/copy")
-    public ApiResponse<AdminProductVO> copy(@PathVariable Long id) {
-        return ApiResponse.ok(productAppService.copy(id));
-    }
-
     @PatchMapping("/{id}/status")
     public ApiResponse<Void> patchStatus(@PathVariable Long id, @RequestParam Integer status) {
         productAppService.patchStatus(id, status);

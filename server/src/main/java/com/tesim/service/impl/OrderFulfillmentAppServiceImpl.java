@@ -48,9 +48,7 @@ public class OrderFulfillmentAppServiceImpl implements OrderFulfillmentAppServic
         if ("PENDING_PAYMENT".equals(st) || "CANCELLED".equals(st)) {
             throw new BizException("当前订单状态不可履约");
         }
-        if ("COMPLETED".equals(st)) {
-            throw new BizException("订单已完成");
-        }
+        // 已发货 / 已完成允许再次发货，用于更正物流或激活信息
 
         String carrier = trim(req.getShippingCarrier());
         String tracking = trim(req.getTrackingNumber());
@@ -116,9 +114,12 @@ public class OrderFulfillmentAppServiceImpl implements OrderFulfillmentAppServic
         notice.setOrderId(orderId);
         notice.setNoticeType("MANUAL_FULFILL");
         notice.setSubject("手动发货");
-        notice.setContent(buildNotice(carrier, tracking, qr, remark));
-        notice.setSentAt(now);
-        noticeService.save(notice);
+        String noticeContent = buildNotice(carrier, tracking, remark);
+        if (StringUtils.hasText(noticeContent)) {
+            notice.setContent(noticeContent);
+            notice.setSentAt(now);
+            noticeService.save(notice);
+        }
 
         SalesOrderEsim esimForMail = esimService.getOne(new LambdaQueryWrapper<SalesOrderEsim>()
                 .eq(SalesOrderEsim::getOrderId, orderId).last("LIMIT 1"));
@@ -138,19 +139,22 @@ public class OrderFulfillmentAppServiceImpl implements OrderFulfillmentAppServic
         return result;
     }
 
-    private String buildNotice(String carrier, String tracking, String qr, String remark) {
-        StringBuilder sb = new StringBuilder("手动履约完成");
+    private String buildNotice(String carrier, String tracking, String remark) {
+        StringBuilder sb = new StringBuilder();
         if (StringUtils.hasText(carrier)) {
-            sb.append("；承运商=").append(carrier);
+            sb.append("承运商=").append(carrier);
         }
         if (StringUtils.hasText(tracking)) {
-            sb.append("；单号=").append(tracking);
-        }
-        if (StringUtils.hasText(qr)) {
-            sb.append("；已录入激活码/二维码");
+            if (!sb.isEmpty()) {
+                sb.append("；");
+            }
+            sb.append("单号=").append(tracking);
         }
         if (StringUtils.hasText(remark)) {
-            sb.append("；备注=").append(remark);
+            if (!sb.isEmpty()) {
+                sb.append("；");
+            }
+            sb.append("备注=").append(remark);
         }
         return sb.toString();
     }

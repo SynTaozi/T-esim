@@ -119,9 +119,6 @@
             <div v-if="order.trackingQrCode" class="qr-block">
               <div class="panel-title">{{ $t('orderLookup.esimOrQr') }}</div>
               <EsimQrImage :value="order.trackingQrCode" img-class="lookup-qr-image" :size="220" />
-              <el-button size="small" class="qr-copy" @click="copyText(order.trackingQrCode)">
-                {{ $t('orderLookup.copy') }}
-              </el-button>
             </div>
           </div>
 
@@ -161,9 +158,6 @@
               <div v-if="order.trackingQrCode" class="qr-block">
                 <div class="panel-title">{{ $t('orderLookup.esimOrQr') }}</div>
                 <EsimQrImage :value="order.trackingQrCode" img-class="lookup-qr-image" :size="220" />
-                <el-button size="small" class="qr-copy" @click="copyText(order.trackingQrCode)">
-                  {{ $t('orderLookup.copy') }}
-                </el-button>
               </div>
             </template>
 
@@ -325,15 +319,6 @@ function canContinuePay(order: any) {
   if (!order) return false
   if (order.status === 0) return true
   return order.rawStatus === 'PENDING_PAYMENT' || order.paymentStatus === 'PENDING'
-}
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success(t('orderLookup.copied'))
-  } catch {
-    ElMessage.error(t('orderLookup.copyFailed'))
-  }
 }
 
 async function fetchOrders(resetPage = false) {
@@ -690,9 +675,6 @@ async function continuePay(order: any) {
   border-radius: 8px;
   background: #fff;
   border: 1px solid #eee;
-}
-.qr-copy {
-  margin-top: 4px;
 }
 .muted { color: #999; font-size: 13px; }
 

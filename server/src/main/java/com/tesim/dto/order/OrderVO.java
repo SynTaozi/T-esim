@@ -35,6 +35,9 @@ public class OrderVO {
     private String trackingNumber;
     private String shippingCarrier;
     private String trackingQrCode;
+    private String shippingPhone;
+    private String shippingRemark;
+    private String shippedAt;
     private String customerNoticeSentAt;
     private String customerNoticeSubject;
     private String customerNoticeContent;

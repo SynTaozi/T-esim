@@ -346,6 +346,9 @@ public class OrderAppServiceImpl implements OrderAppService {
                 .trackingNumber(shipment != null ? shipment.getTrackingNo() : null)
                 .shippingCarrier(shipment != null ? shipment.getCarrierCode() : null)
                 .trackingQrCode(qr)
+                .shippingPhone(shipment != null ? shipment.getShippingPhone() : null)
+                .shippingRemark(shipment != null ? shipment.getShippingRemark() : null)
+                .shippedAt(shipment != null && shipment.getShippedAt() != null ? format(shipment.getShippedAt()) : null)
                 .orderType(order.getOrderType())
                 .renewalOrderId(order.getRenewalOfOrderId())
                 .couponCode(order.getCouponCode())
@@ -354,7 +357,7 @@ public class OrderAppServiceImpl implements OrderAppService {
         if (notice != null) {
             builder.customerNoticeSentAt(notice.getSentAt() != null ? format(notice.getSentAt()) : null)
                     .customerNoticeSubject(notice.getSubject())
-                    .customerNoticeContent(notice.getContent());
+                    .customerNoticeContent(sanitizeCustomerNotice(notice.getContent()));
         }
         if (payment != null) {
             builder.paymentId("PAY" + payment.getId())
@@ -448,6 +451,23 @@ public class OrderAppServiceImpl implements OrderAppService {
                 Objects.toString(a.getCity(), ""),
                 Objects.toString(a.getAddressLine(), ""),
                 Objects.toString(a.getPostalCode(), "")).trim();
+    }
+
+    /** 用户端展示时去掉内部履约话术 */
+    private static String sanitizeCustomerNotice(String content) {
+        if (!StringUtils.hasText(content)) {
+            return content;
+        }
+        String cleaned = content
+                .replace("手动履约完成；", "")
+                .replace("手动履约完成", "")
+                .replace("；已录入激活码/二维码", "")
+                .replace("已录入激活码/二维码；", "")
+                .replace("已录入激活码/二维码", "")
+                .replaceAll("^；+", "")
+                .replaceAll("；{2,}", "；")
+                .trim();
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
     private static int toFrontStatus(String status) {
