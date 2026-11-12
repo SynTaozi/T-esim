@@ -55,24 +55,43 @@
                   <p class="item-name">{{ displayItemName(item) }}</p>
                   <p class="item-sku">x{{ item.quantity }}</p>
                 </div>
-                <div class="item-price">¥{{ item.subtotal }}</div>
+                <div class="item-price">${{ item.subtotal }}</div>
               </div>
+            </div>
+
+            <div v-if="order.status === 0" class="pay-methods">
+              <span class="pay-methods-label">{{ $t('profile.switchPayment') || '支付方式' }}</span>
+              <el-radio-group
+                :model-value="selectedPayment[order.id]"
+                size="small"
+                @update:model-value="(v: string) => selectPayment(order.id, v)"
+              >
+                <el-radio-button
+                  v-for="pm in paymentMethods"
+                  :key="pm.value"
+                  :label="pm.value"
+                >{{ pm.label }}</el-radio-button>
+              </el-radio-group>
+              <span v-if="!paymentMethods.length" class="pay-methods-empty">
+                {{ $t('payment.noPaymentMethods') || '后台暂未开启可用支付方式' }}
+              </span>
             </div>
 
             <div class="order-footer">
               <div class="order-total">
                 <span>{{ $t('orders.total') || 'Total' }}:</span>
-                <span class="total-amount">¥{{ order.totalAmount }}</span>
+                <span class="total-amount">${{ order.totalAmount }}</span>
               </div>
               <div class="order-actions">
                 <el-button link type="primary" @click="viewOrderDetail(order.id)">
                   {{ $t('orders.viewDetails') || 'View Details' }}
                 </el-button>
-                <el-button 
-                  v-if="order.status === 0" 
-                  link 
-                  type="primary" 
-                  @click="payOrder(order.id)"
+                <el-button
+                  v-if="order.status === 0"
+                  link
+                  type="primary"
+                  :loading="payingId === order.id"
+                  @click="payOrder(order)"
                 >
                   {{ $t('orders.pay') || 'Pay Now' }}
                 </el-button>
@@ -105,10 +124,13 @@ import { useI18n } from 'vue-i18n'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { orderApi } from '@/api/order'
+import { paymentMethodApi } from '@/api/paymentMethod'
+import { getPaymentMethodLabel } from '@/utils/paymentMethodLabel'
+import { navigateByPaymentMethod } from '@/utils/stripeCheckout'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { locale } = useI18n()
+const { t, locale } = useI18n()
 
 function displayItemName(item: { productName?: string; nameEn?: string; nameZh?: string }) {
   if (locale.value === 'en') {
@@ -119,10 +141,13 @@ function displayItemName(item: { productName?: string; nameEn?: string; nameZh?:
 
 const orders = ref<any[]>([])
 const loading = ref(true)
+const payingId = ref<number | null>(null)
 const statusFilter = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const paymentMethods = ref<{ value: string; label: string }[]>([])
+const selectedPayment = ref<Record<number, string>>({})
 
 const statusMap: Record<number, string> = {
   0: 'Pending Payment',
@@ -132,23 +157,42 @@ const statusMap: Record<number, string> = {
   4: 'Cancelled'
 }
 
-const statusMapI18n: Record<number, string> = {
-  0: 'orders.pending',
-  1: 'orders.paid',
-  2: 'orders.shipped',
-  3: 'orders.completed',
-  4: 'orders.cancelled'
-}
-
 const formatDate = (date: string | Date) => {
   return new Date(date).toLocaleDateString()
 }
 
 const getStatusText = (status: number) => {
-  // Try to use i18n first, fall back to English
-  const i18nKey = statusMapI18n[status]
-  // You can add i18n support here if needed
   return statusMap[status] || 'Unknown'
+}
+
+function selectPayment(orderId: number, method: string) {
+  selectedPayment.value[orderId] = String(method || '').toUpperCase()
+}
+
+function syncSelectedPayments() {
+  const enabled = new Set(paymentMethods.value.map((pm) => pm.value))
+  for (const order of orders.value) {
+    if (order.status !== 0 || selectedPayment.value[order.id]) continue
+    const fromOrder = String(order.paymentMethod || '').toUpperCase()
+    if (fromOrder && enabled.has(fromOrder)) {
+      selectedPayment.value[order.id] = fromOrder
+    }
+  }
+}
+
+async function loadPaymentMethods() {
+  try {
+    const res: any = await paymentMethodApi.getEnabled()
+    const list = res?.data ?? res ?? []
+    paymentMethods.value = (Array.isArray(list) ? list : [])
+      .map((pm: any) => ({
+        value: String(pm.code || '').toUpperCase(),
+        label: getPaymentMethodLabel(pm.code, t) || pm.code
+      }))
+      .filter((pm: { value: string }) => !!pm.value)
+  } catch {
+    paymentMethods.value = []
+  }
 }
 
 const loadOrders = async () => {
@@ -159,9 +203,10 @@ const loadOrders = async () => {
       pageSize: pageSize.value,
       status: statusFilter.value ? parseInt(statusFilter.value) : undefined
     })
-    
+
     orders.value = response.data?.content || []
     total.value = response.data?.totalElements || 0
+    syncSelectedPayments()
   } catch (error) {
     ElMessage.error('Failed to load orders')
     console.error(error)
@@ -174,14 +219,35 @@ const viewOrderDetail = (orderId: number) => {
   router.push(`/order/${orderId}`)
 }
 
-const payOrder = (orderId: number) => {
-  // Navigate to payment page or payment modal
-  // This depends on your payment flow
-  router.push(`/order-confirm/${orderId}`)
+async function payOrder(order: any) {
+  if (!paymentMethods.value.length) {
+    ElMessage.warning(t('payment.noPaymentMethods') || '后台暂未开启可用支付方式')
+    return
+  }
+  const method = String(selectedPayment.value[order.id] || '').toUpperCase()
+  if (!method || !paymentMethods.value.some((pm) => pm.value === method)) {
+    ElMessage.warning(t('payment.selectPaymentMethod') || '请先选择支付方式')
+    return
+  }
+  payingId.value = order.id
+  try {
+    await navigateByPaymentMethod({
+      paymentMethod: method,
+      orderId: order.id,
+      orderNo: order.orderNo,
+      email: order.buyerEmail || order.email || authStore.user?.email,
+      router
+    })
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('orderDetail.payFailed') || '支付跳转失败')
+  } finally {
+    payingId.value = null
+  }
 }
 
-onMounted(() => {
-  loadOrders()
+onMounted(async () => {
+  await loadPaymentMethods()
+  await loadOrders()
 })
 </script>
 
@@ -350,6 +416,24 @@ onMounted(() => {
   font-size: 16px;
   color: #333;
   font-weight: 500;
+}
+
+.pay-methods {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  background: #fff;
+}
+.pay-methods-label {
+  font-size: 13px;
+  color: #666;
+}
+.pay-methods-empty {
+  font-size: 13px;
+  color: #999;
 }
 
 .order-footer {
