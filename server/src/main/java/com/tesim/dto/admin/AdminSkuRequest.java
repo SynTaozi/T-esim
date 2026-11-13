@@ -13,6 +13,8 @@ public class AdminSkuRequest {
     private Integer months;
     private Integer durationDays;
     private BigDecimal salePrice;
+    /** 实体卡售价；空则与 salePrice 相同 */
+    private BigDecimal physicalSalePrice;
     private BigDecimal price;
     private BigDecimal pricePerMonth;
     private BigDecimal originalPrice;

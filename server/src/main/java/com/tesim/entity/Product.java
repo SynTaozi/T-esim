@@ -42,7 +42,14 @@ public class Product {
 
     private Boolean supportVoice;
 
+    /** 是否支持实体卡交付 */
     private Boolean isPhysical;
+
+    /** 是否支持 eSIM 交付 */
+    private Boolean supportEsim;
+
+    /** MONTHLY=月份档定价；FLAT=一口价 */
+    private String priceMode;
 
     private BigDecimal costPrice;
 

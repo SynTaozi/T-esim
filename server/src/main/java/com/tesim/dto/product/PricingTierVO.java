@@ -12,6 +12,8 @@ public class PricingTierVO {
     private Long productId;
     private Integer months;
     private BigDecimal salePrice;
+    /** 实体卡售价；空则与 salePrice 相同 */
+    private BigDecimal physicalSalePrice;
     /** Alias of salePrice for storefront period chips. */
     private BigDecimal totalPrice;
     private BigDecimal price;

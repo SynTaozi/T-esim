@@ -127,10 +127,6 @@
                   <span>{{ locale === 'zh' ? selectedDeviceInfo.name : selectedDeviceInfo.nameEn }}</span>
                   <span class="amount">${{ selectedDeviceInfo.price.toFixed(2) }}</span>
                 </div>
-                <div class="summary-line">
-                  <span>{{ $t('checkout.shippingCost') }}</span>
-                  <span class="amount">${{ Number(siteConfig.defaultShippingFee ?? 0).toFixed(2) }}</span>
-                </div>
               </template>
               <div class="summary-line" v-if="appliedDiscount > 0">
                 <span>{{ $t('checkout.couponDiscount') }}</span>
@@ -183,7 +179,6 @@ import { paymentApi } from '@/api/payment'
 import { phoneNumberApi, Device } from '@/api/phoneNumber'
 import { useI18n } from 'vue-i18n'
 import { getCurrentLocale } from '@/i18n'
-import { useSiteConfigStore } from '@/stores/siteConfig'
 import { navigateToLogin } from '@/utils/authNavigation'
 import { navigateByPaymentMethod } from '@/utils/stripeCheckout'
 import { Wallet, CreditCard, Message, WalletFilled, Money } from '@element-plus/icons-vue'
@@ -191,7 +186,6 @@ import { Wallet, CreditCard, Message, WalletFilled, Money } from '@element-plus/
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const siteConfig = useSiteConfigStore()
 const { locale, t } = useI18n({ useScope: 'global' })
 const submitting = ref(false)
 
@@ -436,7 +430,6 @@ async function placeOrderWithEmail(userEmail: string) {
   submitting.value = true
 
   try {
-    await siteConfig.ensureShippingFee()
     if (orderData.value.type === 'PURCHASE') {
       // 购买订单
       const orderPayload = {

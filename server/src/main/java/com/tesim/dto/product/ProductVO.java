@@ -24,6 +24,11 @@ public class ProductVO {
     private String importantLabels;
     private String importantLabelsEn;
     private BigDecimal price;
+    /** 实体卡一口价 / 默认档实体价 */
+    private BigDecimal physicalPrice;
+    /** MONTHLY | FLAT */
+    private String priceMode;
+    private Long defaultSkuId;
     private String dataLimit;
     private Integer validityDays;
     private Integer stock;
@@ -38,6 +43,10 @@ public class ProductVO {
     private Integer dataSupport;
     private Integer voiceSupport;
     private Integer isPhysicalCard;
+    /** 是否支持 eSIM 交付 */
+    private Boolean supportEsim;
+    /** 是否支持实体卡交付 */
+    private Boolean supportPhysical;
     private Boolean isFeatured;
     private Boolean isHot;
     private Long itemType;

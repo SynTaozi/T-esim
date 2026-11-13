@@ -49,6 +49,12 @@ public class AdminProductVO {
     private Integer voiceSupport;
     private Integer topupType;
     private Integer isPhysicalCard;
+    /** 是否支持 eSIM 交付 */
+    private Boolean supportEsim;
+    /** 是否支持实体卡交付 */
+    private Boolean supportPhysical;
+    /** MONTHLY | FLAT */
+    private String priceMode;
     private Integer sortOrder;
     private String spuCode;
     private String productKind;

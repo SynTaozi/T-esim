@@ -31,6 +31,9 @@ public class ProductSku {
 
     private BigDecimal salePrice;
 
+    /** 实体卡售价；为空时回退 salePrice */
+    private BigDecimal physicalSalePrice;
+
     private BigDecimal pricePerMonth;
 
     private BigDecimal originalPrice;

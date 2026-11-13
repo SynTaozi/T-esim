@@ -78,7 +78,7 @@
                   <h1 class="pd-product-title">{{ getProductName(product) }}</h1>
                   <p v-if="getProductSummary(product)" class="pd-product-summary">{{ getProductSummary(product) }}</p>
                   <div class="pd-head-price">
-                    <template v-if="productPricingTiers.length === 0 || selectedTier">
+                    <template v-if="!isMonthlyPricing || selectedTier">
                       <span class="pd-head-amount">${{ payablePrice.toFixed(2) }}</span>
                       <span class="pd-head-currency">USD</span>
                     </template>
@@ -89,8 +89,8 @@
             </header>
 
             <div class="pd-purchase-body">
-              <!-- Period -->
-              <section class="pd-block" v-if="productPricingTiers.length > 0">
+              <!-- Period：仅月份定价展示周期档，一口价不展示 -->
+              <section class="pd-block" v-if="isMonthlyPricing">
                 <div class="pd-block-head">
                   <span class="pd-step">1</span>
                   <span>{{ $t('plans.selectPeriod') || 'Select Plan Period' }}</span>
@@ -98,7 +98,7 @@
                 </div>
                 <div class="pd-tier-chips">
                   <label
-                    v-for="tier in productPricingTiers"
+                    v-for="tier in monthlyTiers"
                     :key="tier.id"
                     class="pd-tier-chip"
                     :class="{ selected: selectedTier?.id === tier.id }">
@@ -109,7 +109,7 @@
                         <span v-if="tierBadge(tier)" class="pd-tier-badge">{{ tierBadge(tier) }}</span>
                       </div>
                       <div class="pd-tier-prices">
-                        <span class="pd-tier-total">${{ Number(tier.totalPrice).toFixed(2) }}</span>
+                        <span class="pd-tier-total">${{ tierPrice(tier).toFixed(2) }}</span>
                         <span class="pd-tier-per">${{ tierMonthly(tier) }}/{{ locale === 'zh' ? '月' : 'mo' }}</span>
                       </div>
                     </div>
@@ -117,25 +117,25 @@
                 </div>
               </section>
 
-              <!-- SIM type tabs：不支持 eSIM 时仍展示，但 eSIM 禁用 -->
+              <!-- SIM type tabs：按商品勾选的交付方式展示 -->
               <section class="pd-block">
                 <div class="pd-block-head">
-                  <span class="pd-step">{{ productPricingTiers.length > 0 ? 2 : 1 }}</span>
+                  <span class="pd-step">{{ isMonthlyPricing ? 2 : 1 }}</span>
                   <span>{{ $t('plans.deliveryTitle') }}</span>
                   <span class="pd-required">*</span>
                 </div>
                 <div class="pd-sim-tabs" role="tablist">
                   <button
+                    v-if="supportEsim"
                     type="button"
                     role="tab"
                     class="pd-sim-tab"
-                    :class="{ active: deliveryMode === 'esim', disabled: isPhysicalProduct }"
+                    :class="{ active: deliveryMode === 'esim' }"
                     :aria-selected="deliveryMode === 'esim'"
-                    :aria-disabled="isPhysicalProduct"
-                    :disabled="isPhysicalProduct"
-                    @click="!isPhysicalProduct && (deliveryMode = 'esim')"
+                    @click="deliveryMode = 'esim'"
                   >{{ $t('plans.deliveryEsim') }}</button>
                   <button
+                    v-if="supportPhysical"
                     type="button"
                     role="tab"
                     class="pd-sim-tab"
@@ -145,13 +145,15 @@
                   >{{ $t('plans.deliveryPhysical') }}</button>
                 </div>
                 <p class="pd-sim-hint">
-                  {{ isPhysicalProduct
-                    ? $t('plans.physicalOnlyHint')
-                    : (deliveryMode === 'esim' ? $t('plans.deliveryEsimDesc') : $t('plans.deliveryPhysicalDesc')) }}
+                  {{
+                    supportPhysical && !supportEsim
+                      ? $t('plans.physicalOnlyHint')
+                      : (deliveryMode === 'esim' ? $t('plans.deliveryEsimDesc') : $t('plans.deliveryPhysicalDesc'))
+                  }}
                 </p>
 
-                <template v-if="deliveryMode === 'physical'">
-                  <div class="pd-subhead">{{ $t('plans.pickDevice') }} <span class="pd-required">*</span></div>
+                <template v-if="deliveryMode === 'physical' && devices.length > 0">
+                  <div class="pd-subhead">{{ $t('plans.pickDevice') }}</div>
                   <div class="pd-devices">
                     <label
                       v-for="device in devices"
@@ -162,42 +164,20 @@
                       <input type="checkbox" :value="device.id" v-model="selectedDevices" />
                       <div class="pd-device-inner">
                         <div class="pd-device-text">
-                          <div class="pd-device-name-row">
-                            <span class="pd-device-name">{{ deviceDisplayName(device) }}</span>
-                            <el-tooltip placement="top" :show-after="200" popper-class="device-detail-tooltip">
-                              <template #content>
-                                <div class="device-tip">
-                                  <div class="device-tip-title">{{ deviceDisplayName(device) }}</div>
-                                  <div v-if="deviceDisplayDesc(device)" class="device-tip-desc">{{ deviceDisplayDesc(device) }}</div>
-                                  <div class="device-tip-price">
-                                    {{ device.isFree ? $t('phoneNumbers.free') : ('$' + Number(device.price || 0).toFixed(2)) }}
-                                  </div>
-                                </div>
-                              </template>
-                              <button
-                                type="button"
-                                class="pd-device-info-btn"
-                                :aria-label="locale === 'zh' ? '详情' : 'Details'"
-                                @click.prevent.stop
-                              >i</button>
-                            </el-tooltip>
-                          </div>
+                          <span class="pd-device-name">{{ deviceDisplayName(device) }}</span>
                           <span v-if="deviceDisplayDesc(device)" class="pd-device-desc">{{ deviceDisplayDesc(device) }}</span>
                         </div>
                         <span class="pd-device-price">{{ device.isFree ? $t('phoneNumbers.free') : '$' + device.price.toFixed(2) }}</span>
                       </div>
                     </label>
                   </div>
-                  <div class="pd-shipping-note" v-if="hasDevice">
-                    {{ $t('checkout.shippingNote') }} <strong>{{ siteConfig.formatShippingFee() }}</strong>
-                  </div>
                 </template>
               </section>
 
-              <!-- Shipping -->
-              <section class="pd-block" v-if="deliveryMode === 'physical' && hasDevice">
+              <!-- Shipping：实体卡必须填地址（运费已含在套餐价中） -->
+              <section class="pd-block" v-if="needsShipping">
                 <div class="pd-block-head">
-                  <span class="pd-step">{{ productPricingTiers.length > 0 ? 3 : 2 }}</span>
+                  <span class="pd-step">{{ isMonthlyPricing ? 3 : 2 }}</span>
                   <span>{{ $t('checkout.shippingAddress') }}</span>
                   <span class="pd-required">*</span>
                 </div>
@@ -251,27 +231,23 @@
                 />
               </section>
 
-              <!-- Summary: only when physical device selected -->
-              <section v-if="hasDevice" class="pd-block pd-block--summary">
+              <!-- Summary：有设备费或实体卡时展示；运费已含在套餐价中 -->
+              <section v-if="deviceTotal > 0 || needsShipping" class="pd-block pd-block--summary">
                 <div class="pd-block-head">
                   <span>{{ $t('phoneNumbers.orderSummary') }}</span>
                 </div>
                 <div class="pd-summary">
                   <div class="pd-summary-row">
                     <span>{{ $t('checkout.packageFee') }}</span>
-                    <span v-if="selectedTier">
-                      ${{ selectedTier.totalPrice }}
+                    <span v-if="isMonthlyPricing && selectedTier">
+                      ${{ tierPrice(selectedTier).toFixed(2) }}
                       <small class="pd-summary-sub">({{ selectedTier.months }}{{ locale === 'zh' ? '个月' : ' mo' }})</small>
                     </span>
-                    <span v-else>${{ product.price }}</span>
+                    <span v-else>${{ packagePrice.toFixed(2) }}</span>
                   </div>
-                  <div class="pd-summary-row">
+                  <div class="pd-summary-row" v-if="deviceTotal > 0">
                     <span>{{ $t('phoneNumbers.deviceFee') }}</span>
                     <span>${{ deviceTotal.toFixed(2) }}</span>
-                  </div>
-                  <div class="pd-summary-row">
-                    <span>{{ $t('phoneNumbers.expressFee') }}</span>
-                    <span>{{ siteConfig.formatShippingFee() }}</span>
                   </div>
                   <div class="pd-summary-row" v-if="appliedDiscount > 0">
                     <span>{{ $t('checkout.couponDiscount') }}</span>
@@ -299,7 +275,7 @@
               <!-- Payment -->
               <section class="pd-block" v-if="enabledPaymentMethods.length > 0">
                 <div class="pd-block-head">
-                  <span class="pd-step">{{ hasDevice ? (productPricingTiers.length > 0 ? 4 : 3) : (productPricingTiers.length > 0 ? 3 : 2) }}</span>
+                  <span class="pd-step">{{ needsShipping ? (isMonthlyPricing ? 4 : 3) : (isMonthlyPricing ? 3 : 2) }}</span>
                   <span>{{ $t('phoneNumbers.selectPayment') }}</span>
                 </div>
                 <div class="pd-payments">
@@ -350,7 +326,7 @@
             <footer class="pd-purchase-footer">
               <div class="pd-footer-total">
                 <span>{{ $t('phoneNumbers.total') }}</span>
-                <strong v-if="productPricingTiers.length === 0 || selectedTier">${{ payablePrice.toFixed(2) }} USD</strong>
+                <strong v-if="!isMonthlyPricing || selectedTier">${{ payablePrice.toFixed(2) }} USD</strong>
                 <strong v-else class="pd-total-na">—</strong>
               </div>
               <button
@@ -433,7 +409,6 @@ import PurchaseNoticeDialog from '@/components/PurchaseNoticeDialog.vue'
 import GuestCheckoutEmailDialog from '@/components/GuestCheckoutEmailDialog.vue'
 import { getCurrentLocale } from '@/i18n'
 import { getCountryFlagEmoji } from '@/utils/countryDisplay'
-import { useSiteConfigStore } from '@/stores/siteConfig'
 import { navigateToLogin } from '@/utils/authNavigation'
 import { navigateByPaymentMethod } from '@/utils/stripeCheckout'
 import { getPaymentMethodLabel } from '@/utils/paymentMethodLabel'
@@ -452,13 +427,11 @@ function deviceDisplayDesc(device: Device) {
   if (locale.value === 'zh') return device.description || device.descriptionEn || ''
   return device.descriptionEn || device.description || ''
 }
-const siteConfig = useSiteConfigStore()
-
 const product = ref<Product | null>(null)
 const loading = ref(true)
 
 const selectedDevices = ref<number[]>([])
-/** esim = digital QR only; physical = need device + shipping */
+/** esim = digital QR only; physical = need shipping (device optional) */
 const deliveryMode = ref<'esim' | 'physical'>('esim')
 const paymentMethod = ref('usdt')
 const userBalance = ref(0)
@@ -469,6 +442,12 @@ const guestEmailDialogVisible = ref(false)
 const devices = ref<Device[]>([])
 const productPricingTiers = ref<ProductPricingTier[]>([])
 const selectedTier = ref<ProductPricingTier | null>(null)
+const monthlyTiers = computed(() => productPricingTiers.value.filter((t) => Number(t.months) > 0))
+const isMonthlyPricing = computed(() => {
+  const mode = String((product.value as any)?.priceMode || '').toUpperCase()
+  if (mode === 'FLAT') return false
+  return monthlyTiers.value.length > 0
+})
 
 function normalizeTier(raw: any[]): ProductPricingTier[] {
   return (raw || []).map((t: any) => {
@@ -481,12 +460,38 @@ function normalizeTier(raw: any[]): ProductPricingTier[] {
       months,
       pricePerMonth: perMonth,
       totalPrice: total,
+      salePrice: Number(t.salePrice ?? total),
+      physicalSalePrice: Number(t.physicalSalePrice ?? t.salePrice ?? total),
       label: t.label ?? null,
       sortOrder: t.sortOrder ?? 0,
       isActive: t.isActive ?? 1,
       isDefault: t.isDefault
-    } as ProductPricingTier & { isDefault?: boolean }
+    } as ProductPricingTier & { isDefault?: boolean; salePrice?: number; physicalSalePrice?: number }
   })
+}
+
+function tierPrice(tier: any) {
+  if (!tier) return 0
+  if (deliveryMode.value === 'physical') {
+    return Number(tier.physicalSalePrice ?? tier.totalPrice ?? tier.salePrice ?? tier.price ?? 0)
+  }
+  return Number(tier.salePrice ?? tier.totalPrice ?? tier.price ?? 0)
+}
+
+function flatPackagePrice() {
+  const p = product.value as any
+  if (!p) return 0
+  if (deliveryMode.value === 'physical') {
+    return Number(p.physicalPrice ?? p.price ?? 0)
+  }
+  return Number(p.price ?? 0)
+}
+
+function resolveOrderSkuId() {
+  if (selectedTier.value?.id) return selectedTier.value.id
+  const flat = productPricingTiers.value.find((t) => !(Number(t.months) > 0))
+  if (flat?.id) return flat.id
+  return (product.value as any)?.defaultSkuId
 }
 
 function formatTierMonths(tier: ProductPricingTier) {
@@ -507,10 +512,9 @@ function tierBadge(tier: ProductPricingTier) {
 
 function tierMonthly(tier: ProductPricingTier) {
   const months = Number(tier.months) || 0
-  const total = Number(tier.totalPrice) || 0
+  const total = tierPrice(tier)
   if (months <= 0) return total.toFixed(2)
-  const per = Number(tier.pricePerMonth) || total / months
-  return per.toFixed(2)
+  return (total / months).toFixed(2)
 }
 const shippingAddress = ref({ name: '', phone: '', province: '', city: '', postalCode: '', address: '' })
 const customerRemark = ref('')
@@ -522,16 +526,43 @@ const deviceTotal = computed(() => {
   }, 0)
 })
 
-const isPhysicalProduct = computed(() => {
-  const p = product.value as any
-  return !!(p?.isPhysicalCard === 1 || p?.isPhysicalCard === true || p?.isPhysical)
-})
-const hasDevice = computed(() => deliveryMode.value === 'physical' && selectedDevices.value.length > 0)
+function resolveDeliverySupport(p: any) {
+  if (!p) return { esim: true, physical: true }
+  const hasNew = p.supportEsim != null || p.supportPhysical != null
+  if (hasNew) {
+    return {
+      esim: p.supportEsim !== false && p.supportEsim !== 0,
+      physical: p.supportPhysical !== false && p.supportPhysical !== 0
+    }
+  }
+  const physicalOnly = !!(p.isPhysicalCard === 1 || p.isPhysicalCard === true || p.isPhysical === true)
+  return { esim: !physicalOnly, physical: true }
+}
+
+const supportEsim = computed(() => resolveDeliverySupport(product.value as any).esim)
+const supportPhysical = computed(() => resolveDeliverySupport(product.value as any).physical)
+const needsShipping = computed(() => deliveryMode.value === 'physical')
+
+function syncDeliveryMode() {
+  const esim = supportEsim.value
+  const physical = supportPhysical.value
+  if (esim && physical) {
+    if (deliveryMode.value !== 'esim' && deliveryMode.value !== 'physical') {
+      deliveryMode.value = 'esim'
+    }
+    return
+  }
+  if (physical && !esim) deliveryMode.value = 'physical'
+  else if (esim && !physical) deliveryMode.value = 'esim'
+}
 
 watch(deliveryMode, (mode) => {
-  // 实体卡商品禁止切回 eSIM
-  if (isPhysicalProduct.value && mode === 'esim') {
+  if (mode === 'esim' && !supportEsim.value && supportPhysical.value) {
     deliveryMode.value = 'physical'
+    return
+  }
+  if (mode === 'physical' && !supportPhysical.value && supportEsim.value) {
+    deliveryMode.value = 'esim'
     return
   }
   if (mode === 'esim') {
@@ -539,22 +570,16 @@ watch(deliveryMode, (mode) => {
   }
 })
 
-watch(isPhysicalProduct, (v) => {
-  if (v) deliveryMode.value = 'physical'
-}, { immediate: true })
-
-const shippingFeeAmount = computed(() => {
-  if (!hasDevice.value) return 0
-  return Number(siteConfig.defaultShippingFee ?? 0)
-})
+watch([supportEsim, supportPhysical], () => syncDeliveryMode(), { immediate: true })
 
 const packagePrice = computed(() => {
-  if (selectedTier.value) return selectedTier.value.totalPrice
+  if (isMonthlyPricing.value && selectedTier.value) return tierPrice(selectedTier.value)
+  if (!isMonthlyPricing.value) return flatPackagePrice()
   return product.value?.price || 0
 })
 
 const orderTotal = computed(() => {
-  return packagePrice.value + deviceTotal.value + shippingFeeAmount.value
+  return packagePrice.value + deviceTotal.value
 })
 
 const couponInput = ref('')
@@ -705,13 +730,10 @@ function getPaymentIconClass(code: string): string {
 }
 
 async function handleBuyNow() {
-  if (productPricingTiers.value.length > 0 && !selectedTier.value) {
+  if (isMonthlyPricing.value && !selectedTier.value) {
     ElMessage.warning(t('plans.selectPeriodFirst') || 'Please select a plan period'); return
   }
-  if (deliveryMode.value === 'physical' && selectedDevices.value.length === 0) {
-    ElMessage.warning(t('plans.physicalRequiresDevice') || 'Please select at least one device'); return
-  }
-  if (hasDevice.value) {
+  if (needsShipping.value) {
     if (!shippingAddress.value.name) { ElMessage.warning(t('checkout.nameRequired') || 'Please enter recipient name'); return }
     if (!shippingAddress.value.phone) { ElMessage.warning(t('checkout.phoneRequired') || 'Please enter phone number'); return }
     if (!shippingAddress.value.province) { ElMessage.warning(t('checkout.provinceRequired') || 'Please enter province'); return }
@@ -747,20 +769,22 @@ async function submitOrderAfterNotice(emailInput: string) {
   }
   placingOrder.value = true
   try {
-    await siteConfig.ensureShippingFee()
     const paymentMethodUpper = paymentMethod.value.toUpperCase()
+    const skuId = resolveOrderSkuId()
     const orderData: any = {
       email,
       paymentMethod: paymentMethodUpper,
       productId: product.value.id,
+      deliveryMode: deliveryMode.value,
       devices: selectedDevices.value.map(id => String(id)),
       totalAmount: orderTotal.value,
       couponCode: appliedCode.value || undefined,
       language: getCurrentLocale(),
       customerRemark: customerRemark.value.trim() || undefined,
-      ...(selectedTier.value ? { pricingTierId: selectedTier.value.id, selectedMonths: selectedTier.value.months } : {})
+      ...(skuId ? { skuId, pricingTierId: skuId } : {}),
+      ...(selectedTier.value ? { selectedMonths: selectedTier.value.months, periodValue: selectedTier.value.months } : {})
     }
-    if (hasDevice.value) {
+    if (needsShipping.value) {
       const addr = shippingAddress.value
       orderData.shippingAddress = `${addr.name} ${addr.phone} ${addr.province} ${addr.city} ${addr.postalCode || ''} ${addr.address}`
     }
@@ -802,10 +826,13 @@ onMounted(async () => {
       const tiersRes: any = await pricingTierApi.getActiveByProduct(id)
       if (tiersRes.code === 200) {
         productPricingTiers.value = normalizeTier(tiersRes.data || [])
-        const def = productPricingTiers.value.find((t: any) => t.isDefault)
-          || productPricingTiers.value[0]
-          || null
-        selectedTier.value = def
+        if (isMonthlyPricing.value) {
+          selectedTier.value = monthlyTiers.value.find((t: any) => t.isDefault)
+            || monthlyTiers.value[0]
+            || null
+        } else {
+          selectedTier.value = null
+        }
       }
     }
 
@@ -1245,33 +1272,13 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--primary, #0059b5) 6%, transparent);
 }
 .pd-device-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-.pd-device-name-row { display: flex; align-items: center; gap: 6px; }
 .pd-device-name { font-size: 13px; font-weight: 600; color: var(--text-primary, #1a1b1f); }
-.pd-device-info-btn {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid var(--text-muted, #94a3b8);
-  background: transparent;
-  color: var(--text-muted, #64748b);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: help;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
+.pd-device-desc {
+  font-size: 11px;
+  color: var(--text-muted, #717785);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
-.pd-device-info-btn:hover {
-  border-color: var(--accent-primary, #003ec7);
-  color: var(--accent-primary, #003ec7);
-}
-.pd-device-desc { font-size: 11px; color: var(--text-muted, #717785); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.device-tip { max-width: 260px; }
-.device-tip-title { font-weight: 700; margin-bottom: 6px; }
-.device-tip-desc { font-size: 12px; line-height: 1.5; opacity: 0.92; white-space: pre-wrap; }
-.device-tip-price { margin-top: 8px; font-weight: 700; }
 .pd-device-price { font-size: 13px; font-weight: 700; color: var(--primary, #0059b5); flex-shrink: 0; }
 .pd-shipping-note {
   display: flex;

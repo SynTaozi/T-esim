@@ -7,6 +7,7 @@ export interface ProductPricingTier {
   pricePerMonth: number
   totalPrice: number
   salePrice?: number
+  physicalSalePrice?: number
   price?: number
   label: string | null
   sortOrder: number

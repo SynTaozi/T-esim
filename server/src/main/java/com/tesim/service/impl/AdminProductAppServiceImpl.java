@@ -121,7 +121,8 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         productService.updateById(p);
         // 布尔标记显式落库，避免 updateById 策略漏更
         if (req.getIsFeatured() != null || req.getIsHot() != null || req.getIsPhysical() != null
-                || req.getIsPhysicalCard() != null) {
+                || req.getIsPhysicalCard() != null || req.getSupportEsim() != null
+                || StringUtils.hasText(req.getPriceMode())) {
             LambdaUpdateWrapper<Product> uw = new LambdaUpdateWrapper<Product>().eq(Product::getId, id);
             if (req.getIsFeatured() != null) {
                 uw.set(Product::getIsFeatured, req.getIsFeatured());
@@ -129,10 +130,19 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
             if (req.getIsHot() != null) {
                 uw.set(Product::getIsHot, req.getIsHot());
             }
+            if (req.getSupportEsim() != null) {
+                uw.set(Product::getSupportEsim, req.getSupportEsim());
+            }
+            if (StringUtils.hasText(req.getPriceMode())) {
+                uw.set(Product::getPriceMode, normalizePriceMode(req.getPriceMode()));
+            }
             if (req.getIsPhysical() != null) {
                 uw.set(Product::getIsPhysical, req.getIsPhysical());
-            } else if (req.getIsPhysicalCard() != null) {
-                uw.set(Product::getIsPhysical, req.getIsPhysicalCard() == 1);
+            } else if (req.getIsPhysicalCard() != null && req.getIsPhysical() == null) {
+                uw.set(Product::getIsPhysical, true);
+                if (req.getSupportEsim() == null) {
+                    uw.set(Product::getSupportEsim, req.getIsPhysicalCard() != 1);
+                }
             }
             productService.update(uw);
         }
@@ -345,6 +355,11 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         } else if (creating) {
             sku.setSalePrice(BigDecimal.ZERO);
         }
+        if (req.getPhysicalSalePrice() != null) {
+            sku.setPhysicalSalePrice(req.getPhysicalSalePrice());
+        } else if (creating && sku.getPhysicalSalePrice() == null) {
+            sku.setPhysicalSalePrice(sku.getSalePrice());
+        }
         if (req.getPricePerMonth() != null) {
             sku.setPricePerMonth(req.getPricePerMonth());
         }
@@ -413,12 +428,34 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
         if (req.getVoiceSupport() != null) {
             p.setSupportVoice(req.getVoiceSupport() == 1);
         }
-        if (req.getIsPhysicalCard() != null) {
-            p.setIsPhysical(req.getIsPhysicalCard() == 1);
-        } else if (req.getIsPhysical() != null) {
-            p.setIsPhysical(req.getIsPhysical());
+        if (req.getSupportEsim() != null) {
+            p.setSupportEsim(req.getSupportEsim());
         } else if (creating) {
-            p.setIsPhysical(false);
+            p.setSupportEsim(true);
+        }
+        if (StringUtils.hasText(req.getPriceMode())) {
+            p.setPriceMode(normalizePriceMode(req.getPriceMode()));
+        } else if (creating) {
+            p.setPriceMode("MONTHLY");
+        }
+        if (req.getIsPhysical() != null) {
+            p.setIsPhysical(req.getIsPhysical());
+        } else if (req.getIsPhysicalCard() != null) {
+            // 旧字段：1=仅实体 → 关 eSIM；0=可双选 → 开实体+开 eSIM
+            if (req.getIsPhysicalCard() == 1) {
+                p.setIsPhysical(true);
+                if (req.getSupportEsim() == null) {
+                    p.setSupportEsim(false);
+                }
+            } else {
+                p.setIsPhysical(true);
+                if (req.getSupportEsim() == null) {
+                    p.setSupportEsim(true);
+                }
+            }
+        } else if (creating) {
+            p.setIsPhysical(true);
+            p.setSupportEsim(true);
         }
         if (req.getCostPrice() != null) {
             p.setCostPrice(req.getCostPrice());
@@ -661,7 +698,12 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
                 .dataSupport(Boolean.TRUE.equals(p.getSupportData()) ? 1 : 0)
                 .voiceSupport(Boolean.TRUE.equals(p.getSupportVoice()) ? 1 : 0)
                 .topupType(p.getTopupMode())
-                .isPhysicalCard(Boolean.TRUE.equals(p.getIsPhysical()) ? 1 : 0)
+                .supportEsim(p.getSupportEsim() == null || Boolean.TRUE.equals(p.getSupportEsim()))
+                .supportPhysical(Boolean.TRUE.equals(p.getIsPhysical()))
+                // 兼容旧字段：仅实体时为 1
+                .isPhysicalCard(Boolean.TRUE.equals(p.getIsPhysical())
+                        && Boolean.FALSE.equals(p.getSupportEsim()) ? 1 : 0)
+                .priceMode(StringUtils.hasText(p.getPriceMode()) ? p.getPriceMode() : "MONTHLY")
                 .sortOrder(p.getSortOrder())
                 .spuCode(p.getSpuCode())
                 .productKind(p.getProductKind())
@@ -670,6 +712,13 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
                 .skus(skuVos)
                 .pricingTiers(skuVos)
                 .build();
+    }
+
+    private String normalizePriceMode(String mode) {
+        if (!StringUtils.hasText(mode)) {
+            return "MONTHLY";
+        }
+        return "FLAT".equalsIgnoreCase(mode.trim()) ? "FLAT" : "MONTHLY";
     }
 
     private AdminSkuVO toSkuVO(ProductSku sku) {
@@ -688,6 +737,7 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
                 .months(sku.getMonths())
                 .durationDays(sku.getDurationDays())
                 .salePrice(sku.getSalePrice())
+                .physicalSalePrice(sku.getPhysicalSalePrice() != null ? sku.getPhysicalSalePrice() : sku.getSalePrice())
                 .price(sku.getSalePrice())
                 .pricePerMonth(sku.getPricePerMonth())
                 .originalPrice(sku.getOriginalPrice())

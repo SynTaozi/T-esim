@@ -137,6 +137,7 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                     .eq(I18nProductSku::getSkuId, sku.getId())
                     .eq(I18nProductSku::getLocale, locale));
             BigDecimal sale = sku.getSalePrice() == null ? BigDecimal.ZERO : sku.getSalePrice();
+            BigDecimal physical = sku.getPhysicalSalePrice() != null ? sku.getPhysicalSalePrice() : sale;
             BigDecimal perMonth = sku.getPricePerMonth();
             if (perMonth == null && sku.getMonths() != null && sku.getMonths() > 0) {
                 perMonth = sale.divide(BigDecimal.valueOf(sku.getMonths()), 2, java.math.RoundingMode.HALF_UP);
@@ -146,6 +147,7 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                     .productId(sku.getProductId())
                     .months(sku.getMonths())
                     .salePrice(sale)
+                    .physicalSalePrice(physical)
                     .totalPrice(sale)
                     .price(sale)
                     .pricePerMonth(perMonth)
@@ -266,7 +268,11 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                 .orderByDesc(ProductSku::getIsDefault)
                 .orderByAsc(ProductSku::getSortOrder)
                 .last("LIMIT 1"));
-        BigDecimal price = defaultSku != null ? defaultSku.getSalePrice() : BigDecimal.ZERO;
+        BigDecimal price = defaultSku != null && defaultSku.getSalePrice() != null
+                ? defaultSku.getSalePrice() : BigDecimal.ZERO;
+        BigDecimal physicalPrice = defaultSku != null && defaultSku.getPhysicalSalePrice() != null
+                ? defaultSku.getPhysicalSalePrice() : price;
+        String priceMode = StringUtils.hasText(p.getPriceMode()) ? p.getPriceMode() : "MONTHLY";
 
         ProductCategory cat = p.getCategoryId() != null ? productCategoryService.getById(p.getCategoryId()) : null;
         I18nProductCategory catI18n = null;
@@ -291,6 +297,9 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                 .importantLabels(zh != null ? zh.getNotes() : null)
                 .importantLabelsEn(en != null ? en.getNotes() : null)
                 .price(price)
+                .physicalPrice(physicalPrice)
+                .priceMode(priceMode)
+                .defaultSkuId(defaultSku != null ? defaultSku.getId() : null)
                 .dataLimit(p.getDataLimit())
                 .validityDays(p.getBaseValidityDays())
                 .stock(defaultSku != null ? defaultSku.getStock() : null)
@@ -302,7 +311,11 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                 .smsSupport(Boolean.TRUE.equals(p.getSupportSms()) ? 1 : 0)
                 .dataSupport(Boolean.TRUE.equals(p.getSupportData()) ? 1 : 0)
                 .voiceSupport(Boolean.TRUE.equals(p.getSupportVoice()) ? 1 : 0)
-                .isPhysicalCard(Boolean.TRUE.equals(p.getIsPhysical()) ? 1 : 0)
+                .supportEsim(p.getSupportEsim() == null || Boolean.TRUE.equals(p.getSupportEsim()))
+                .supportPhysical(Boolean.TRUE.equals(p.getIsPhysical()))
+                .isPhysicalCard(Boolean.TRUE.equals(p.getIsPhysical())
+                        && !(p.getSupportEsim() == null || Boolean.TRUE.equals(p.getSupportEsim()))
+                        ? 1 : 0)
                 .isFeatured(Boolean.TRUE.equals(p.getIsFeatured()))
                 .isHot(Boolean.TRUE.equals(p.getIsHot()))
                 .itemType(p.getCategoryId())

@@ -168,10 +168,6 @@
                   <span>{{ selectedDeviceInfo?.name || selectedDeviceInfo?.nameEn }}</span>
                   <span class="amount">${{ selectedDeviceInfo?.price.toFixed(2) }}</span>
                 </div>
-                <div class="summary-line">
-                  <span>{{ $t('checkout.shippingCost') }}</span>
-                  <span class="amount">${{ Number(siteConfig.defaultShippingFee ?? 0).toFixed(2) }}</span>
-                </div>
               </template>
               <div class="summary-line" v-if="appliedDiscount > 0">
                 <span>{{ $t('checkout.couponDiscount') }}</span>
@@ -224,14 +220,12 @@ import { phoneNumberApi, Device } from '@/api/phoneNumber'
 import { paymentApi } from '@/api/payment'
 import { useI18n } from 'vue-i18n'
 import { getCurrentLocale } from '@/i18n'
-import { useSiteConfigStore } from '@/stores/siteConfig'
 import { navigateToLogin } from '@/utils/authNavigation'
 import { navigateByPaymentMethod } from '@/utils/stripeCheckout'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const siteConfig = useSiteConfigStore()
 const { locale, t } = useI18n({ useScope: 'global' })
 const submitting = ref(false)
 
@@ -303,14 +297,13 @@ const addressForm = ref({
 const customerRemark = ref('')
 const guestEmailDialogVisible = ref(false)
 
-// 计算总价
+// 计算总价（运费已含在套餐价中）
 const totalPrice = computed(() => {
   let price = product.value.monthlyPrice
   if (selectedDevice.value) {
     const device = devices.value.find(d => d.id === selectedDevice.value)
     if (device) {
       price += device.price
-      price += Number(siteConfig.defaultShippingFee ?? 0)
     }
   }
   return price
@@ -443,7 +436,6 @@ async function placeOrderWithEmail(userEmail: string) {
   submitting.value = true
 
   try {
-    await siteConfig.ensureShippingFee()
     // 构建订单数据
     const orderData = {
       email: userEmail,

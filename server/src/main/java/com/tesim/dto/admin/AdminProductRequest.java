@@ -44,8 +44,12 @@ public class AdminProductRequest {
     private Integer voiceSupport;
     private Integer topupType;
     private Integer isPhysicalCard;
-    /** 兼容管理端表单 isPhysical（布尔） */
+    /** 兼容管理端表单 isPhysical（布尔）= 是否支持实体卡 */
     private Boolean isPhysical;
+    /** 是否支持 eSIM 交付 */
+    private Boolean supportEsim;
+    /** MONTHLY | FLAT */
+    private String priceMode;
     private Integer sortOrder;
     private String spuCode;
     private String productKind;

@@ -36,7 +36,12 @@ export interface Product {
   topupType?: number   // 同 topup_type（后端驼峰字段）
   importantLabels?: string
   importantLabelsEn?: string
-  isPhysicalCard?: number  // 0-eSIM卡, 1-实体卡
+  isPhysicalCard?: number  // 兼容旧字段：1=仅实体
+  supportEsim?: boolean | number  // 是否支持 eSIM 交付
+  supportPhysical?: boolean | number  // 是否支持实体卡交付
+  priceMode?: 'MONTHLY' | 'FLAT' | string
+  physicalPrice?: number
+  defaultSkuId?: number
   displayImageUrl?: string  // 产品展示大图
   sortOrder?: number  // 自定义排序序号
 }

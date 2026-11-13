@@ -16,15 +16,6 @@
         <el-form-item label="登录页 Banner"><el-input v-model="site.loginBannerUrl" /></el-form-item>
         <el-form-item label="注册页 Banner"><el-input v-model="site.registerBannerUrl" /></el-form-item>
         <el-form-item label="首页 Hero"><el-input v-model="site.homeHeroImageUrl" /></el-form-item>
-        <el-form-item label="默认运费 (USD)">
-          <el-input-number
-            v-model="site.defaultShippingFee"
-            :min="0"
-            :precision="2"
-            :step="0.5"
-          />
-          <div class="field-tip">购买实体设备时整单收取一次，前台结算会读取该金额</div>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="saveSite">保存站点配置</el-button>
         </el-form-item>
@@ -42,8 +33,7 @@ const theme = reactive<any>({ code: 'default', primaryColor: '#2563eb', enabled:
 const site = reactive<any>({
   loginBannerUrl: '',
   registerBannerUrl: '',
-  homeHeroImageUrl: '',
-  defaultShippingFee: 0
+  homeHeroImageUrl: ''
 })
 
 async function load() {
@@ -52,8 +42,6 @@ async function load() {
   site.loginBannerUrl = siteData.loginBannerUrl || ''
   site.registerBannerUrl = siteData.registerBannerUrl || ''
   site.homeHeroImageUrl = siteData.homeHeroImageUrl || ''
-  site.defaultShippingFee =
-    siteData.defaultShippingFee == null ? 0 : Number(siteData.defaultShippingFee)
 }
 
 async function saveTheme() {
@@ -65,8 +53,7 @@ async function saveSite() {
   await siteApi.save({
     loginBannerUrl: site.loginBannerUrl,
     registerBannerUrl: site.registerBannerUrl,
-    homeHeroImageUrl: site.homeHeroImageUrl,
-    defaultShippingFee: Number(site.defaultShippingFee ?? 0)
+    homeHeroImageUrl: site.homeHeroImageUrl
   })
   ElMessage.success('站点配置已保存')
   await load()

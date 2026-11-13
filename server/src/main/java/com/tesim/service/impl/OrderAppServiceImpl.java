@@ -46,7 +46,6 @@ public class OrderAppServiceImpl implements OrderAppService {
     private final ProductService productService;
     private final ProductSkuService productSkuService;
     private final I18nProductService i18nProductService;
-    private final CmsSiteSettingService siteSettingService;
     private final CouponAppService couponAppService;
     private final OrderPaymentExpireService orderPaymentExpireService;
     private final DingtalkNotifyService dingtalkNotifyService;
@@ -69,21 +68,22 @@ public class OrderAppServiceImpl implements OrderAppService {
         }
 
         ProductSku sku = resolveSku(productId, req.getSkuId(), req.getPeriodValue());
-        BigDecimal unitPrice = sku != null && sku.getSalePrice() != null
-                ? sku.getSalePrice()
-                : BigDecimal.ZERO;
+        boolean physicalDelivery = "physical".equalsIgnoreCase(req.getDeliveryMode())
+                || StringUtils.hasText(req.getShippingAddress());
+        BigDecimal unitPrice = BigDecimal.ZERO;
+        if (sku != null) {
+            if (physicalDelivery && sku.getPhysicalSalePrice() != null) {
+                unitPrice = sku.getPhysicalSalePrice();
+            } else if (sku.getSalePrice() != null) {
+                unitPrice = sku.getSalePrice();
+            }
+        }
+        // 前台 totalAmount 含可选设备费用；运费已并入口价，不再另计
         if (req.getTotalAmount() != null) {
             unitPrice = req.getTotalAmount();
         }
 
         BigDecimal shipping = BigDecimal.ZERO;
-        if (Boolean.TRUE.equals(product.getIsPhysical()) || StringUtils.hasText(req.getShippingAddress())) {
-            CmsSiteSetting setting = siteSettingService.getOne(new LambdaQueryWrapper<CmsSiteSetting>()
-                    .eq(CmsSiteSetting::getCode, "default").last("LIMIT 1"));
-            if (setting != null && setting.getDefaultShippingFee() != null) {
-                shipping = setting.getDefaultShippingFee();
-            }
-        }
 
         String couponCode = req.getCouponCode();
         BigDecimal discount = BigDecimal.ZERO;

@@ -20,6 +20,7 @@ public class AdminSkuVO {
     private Integer months;
     private Integer durationDays;
     private BigDecimal salePrice;
+    private BigDecimal physicalSalePrice;
     private BigDecimal price;
     private BigDecimal pricePerMonth;
     private BigDecimal originalPrice;

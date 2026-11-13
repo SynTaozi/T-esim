@@ -43,7 +43,6 @@
             </el-row>
             <el-form-item v-if="isDevice" label="价格 (USD)" required>
               <el-input-number v-model="devicePrice" :min="0" :precision="2" :controls="false" style="width: 220px" />
-              <div class="field-hint">设备为单一定价，0 表示免费</div>
             </el-form-item>
           </section>
 
@@ -120,32 +119,72 @@
             </template>
           </section>
 
-          <!-- 定价档（非 DEVICE） -->
+          <!-- 定价（非 DEVICE） -->
           <section v-if="!isDevice" class="form-card">
             <div class="card-title-row">
-              <h3 class="card-title">定价档</h3>
-              <el-button type="primary" plain size="small" @click="addSku">添加档位</el-button>
+              <h3 class="card-title">定价</h3>
+              <el-radio-group v-model="form.priceMode" size="small" @change="onPriceModeChange">
+                <el-radio-button label="MONTHLY">月份定价</el-radio-button>
+                <el-radio-button label="FLAT">一口价</el-radio-button>
+              </el-radio-group>
             </div>
-            <div class="field-hint" style="margin-top: -4px; margin-bottom: 12px">
-              可添加多档相同月份；保存时会同步增删改定价档。
-            </div>
-            <div v-if="!form.skus.length" class="empty-skus">
-              暂无定价档，点击右上角添加
-            </div>
-            <div v-else class="sku-list">
-              <div v-for="(row, index) in form.skus" :key="index" class="sku-row">
-                <div class="sku-row__main">
-                  <el-input v-model="row.labelZh" placeholder="标签，如 1个月" />
-                  <el-input-number v-model="row.months" :min="0" :controls="false" placeholder="月" />
-                  <el-input-number v-model="row.durationDays" :min="0" :controls="false" placeholder="天数" />
-                  <el-input-number v-model="row.salePrice" :min="0" :precision="2" :controls="false" placeholder="售价 USD" />
-                </div>
-                <div class="sku-row__meta">
-                  <el-checkbox v-model="row.isDefault" @change="onDefaultChange(index)">默认档</el-checkbox>
-                  <el-button link type="danger" @click="form.skus.splice(index, 1)">删除</el-button>
+
+            <template v-if="form.priceMode === 'FLAT'">
+              <div class="field-hint" style="margin-top: -4px; margin-bottom: 12px">
+                一口价含快递；eSIM / 实体卡可分别定价。前台不展示周期档位。
+              </div>
+              <el-row :gutter="16">
+                <el-col v-if="cardTypes.includes('ESIM')" :xs="24" :sm="12">
+                  <el-form-item label="eSIM 价格 (USD)" required>
+                    <el-input-number v-model="flatEsimPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+                <el-col v-if="cardTypes.includes('PHYSICAL')" :xs="24" :sm="12">
+                  <el-form-item label="实体卡价格 (USD)" required>
+                    <el-input-number v-model="flatPhysicalPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </template>
+
+            <template v-else>
+              <div class="card-title-row" style="margin-top: 4px">
+                <div class="field-hint" style="margin: 0">可添加多档月份；eSIM / 实体卡分别定价。</div>
+                <el-button type="primary" plain size="small" @click="addSku">添加档位</el-button>
+              </div>
+              <div v-if="!form.skus.length" class="empty-skus">
+                暂无定价档，点击右上角添加
+              </div>
+              <div v-else class="sku-list">
+                <div v-for="(row, index) in form.skus" :key="index" class="sku-row">
+                  <div class="sku-row__main sku-row__main--monthly">
+                    <el-input v-model="row.labelZh" placeholder="标签，如 1个月" />
+                    <el-input-number v-model="row.months" :min="1" :controls="false" placeholder="月" />
+                    <el-input-number v-model="row.durationDays" :min="0" :controls="false" placeholder="天数" />
+                    <el-input-number
+                      v-if="cardTypes.includes('ESIM')"
+                      v-model="row.salePrice"
+                      :min="0"
+                      :precision="2"
+                      :controls="false"
+                      placeholder="eSIM 价"
+                    />
+                    <el-input-number
+                      v-if="cardTypes.includes('PHYSICAL')"
+                      v-model="row.physicalSalePrice"
+                      :min="0"
+                      :precision="2"
+                      :controls="false"
+                      placeholder="实体卡价"
+                    />
+                  </div>
+                  <div class="sku-row__meta">
+                    <el-checkbox v-model="row.isDefault" @change="onDefaultChange(index)">默认档</el-checkbox>
+                    <el-button link type="danger" @click="form.skus.splice(index, 1)">删除</el-button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </template>
           </section>
         </div>
 
@@ -201,11 +240,11 @@
               </el-radio-group>
             </el-form-item>
             <el-form-item v-if="!isDevice" label="卡片类型">
-              <el-radio-group v-model="physicalType" class="status-group">
-                <el-radio-button :label="0">eSIM</el-radio-button>
-                <el-radio-button :label="1">实体卡</el-radio-button>
-              </el-radio-group>
-              <div class="field-hint">实体卡下单须选设备并填地址</div>
+              <el-checkbox-group v-model="cardTypes" class="card-type-group">
+                <el-checkbox label="ESIM">eSIM</el-checkbox>
+                <el-checkbox label="PHYSICAL">实体卡</el-checkbox>
+              </el-checkbox-group>
+              <div class="field-hint">可多选；前台仅展示勾选的交付方式。含实体卡时须填收货地址；无配套设备时不展示设备选项</div>
             </el-form-item>
             <el-form-item label="排序">
               <el-input-number v-model="form.sortOrder" :min="0" :controls="false" style="width: 100%" />
@@ -272,7 +311,8 @@ const children = ref<any[]>([])
 const rootId = ref<number>()
 const contentLangTab = ref<'zh' | 'en'>('zh')
 const badgeMark = ref<'none' | 'hot' | 'featured'>('none')
-const physicalType = ref<0 | 1>(0)
+/** 卡片类型多选：ESIM / PHYSICAL，各自控制前台交付方式 */
+const cardTypes = ref<string[]>(['ESIM', 'PHYSICAL'])
 const notesZhText = ref('')
 const notesEnText = ref('')
 const featuresZhText = ref('')
@@ -282,6 +322,7 @@ const regionOptions = ['Asia', 'Europe', 'America', 'Oceania', 'Africa', 'Global
 const form = reactive<any>({
   spuCode: '',
   productKind: 'ESIM',
+  priceMode: 'MONTHLY',
   nameZh: '',
   nameEn: '',
   summaryZh: '',
@@ -336,13 +377,66 @@ function textToFeaturesJson(text: string): string {
 function addSku() {
   form.skus.push({
     labelZh: '',
-    months: 1,
-    durationDays: 30,
+    months: form.priceMode === 'FLAT' ? 0 : 1,
+    durationDays: form.priceMode === 'FLAT' ? 0 : 30,
     salePrice: 0,
+    physicalSalePrice: 0,
     isDefault: form.skus.length === 0,
     status: 1,
     sortOrder: form.skus.length
   })
+}
+
+function ensureFlatSku() {
+  if (!form.skus.length) {
+    form.skus.push({
+      labelZh: '一口价',
+      labelEn: 'Flat',
+      months: 0,
+      durationDays: form.baseValidityDays || 0,
+      salePrice: 0,
+      physicalSalePrice: 0,
+      isDefault: true,
+      status: 1,
+      sortOrder: 0
+    })
+  } else if (form.skus.length > 1) {
+    form.skus.splice(1)
+  }
+  const row = form.skus[0]
+  row.months = 0
+  row.isDefault = true
+  row.labelZh = row.labelZh || '一口价'
+  if (row.physicalSalePrice == null) row.physicalSalePrice = row.salePrice ?? 0
+}
+
+const flatEsimPrice = computed({
+  get: () => Number(form.skus?.[0]?.salePrice ?? 0),
+  set: (v: number) => {
+    ensureFlatSku()
+    form.skus[0].salePrice = v
+  }
+})
+
+const flatPhysicalPrice = computed({
+  get: () => Number(form.skus?.[0]?.physicalSalePrice ?? form.skus?.[0]?.salePrice ?? 0),
+  set: (v: number) => {
+    ensureFlatSku()
+    form.skus[0].physicalSalePrice = v
+  }
+})
+
+function onPriceModeChange() {
+  if (form.priceMode === 'FLAT') {
+    ensureFlatSku()
+  } else if (!form.skus.length) {
+    addSku()
+  } else {
+    form.skus.forEach((s: any) => {
+      if (!s.months || s.months <= 0) s.months = 1
+      if (s.physicalSalePrice == null) s.physicalSalePrice = s.salePrice ?? 0
+    })
+  }
 }
 
 function ensureDeviceSku() {
@@ -379,7 +473,7 @@ function onProductKindChange() {
       form.skus.splice(1)
     }
     badgeMark.value = 'none'
-    physicalType.value = 0
+    cardTypes.value = ['ESIM', 'PHYSICAL']
   } else if (!form.skus.length) {
     addSku()
   }
@@ -480,14 +574,29 @@ async function save() {
     ElMessage.warning('请填写中文名')
     return
   }
+  if (!isDevice.value && !cardTypes.value.length) {
+    ElMessage.warning('请至少选择一种卡片类型（eSIM / 实体卡）')
+    return
+  }
   if (isDevice.value) {
     ensureDeviceSku()
+  } else if (form.priceMode === 'FLAT') {
+    ensureFlatSku()
+  } else if (!form.skus.length) {
+    ElMessage.warning('请至少添加一个月份定价档')
+    return
   }
   saving.value = true
   try {
     const statusMap: Record<string, number> = { ON_SALE: 1, DRAFT: 0, OFF_SALE: 0 }
     const summaryZh = form.summaryZh ?? ''
     const summaryEn = form.summaryEn ?? ''
+    const priceMode = isDevice.value ? 'FLAT' : (form.priceMode === 'FLAT' ? 'FLAT' : 'MONTHLY')
+    const skuSource = isDevice.value
+      ? form.skus.slice(0, 1)
+      : priceMode === 'FLAT'
+        ? form.skus.slice(0, 1)
+        : form.skus || []
     const payload = {
       name: (form.nameZh || '').trim(),
       nameZh: (form.nameZh || '').trim(),
@@ -503,6 +612,7 @@ async function save() {
       featuresEn: isDevice.value ? '[]' : textToFeaturesJson(featuresEnText.value),
       spuCode: (form.spuCode || '').trim() || undefined,
       productKind: form.productKind,
+      priceMode,
       categoryId: isDevice.value ? undefined : form.categoryId,
       subCategoryId: isDevice.value ? undefined : form.categoryId,
       status: statusMap[form.status] ?? 0,
@@ -515,21 +625,29 @@ async function save() {
       applicableRegions: isDevice.value ? [] : (form.coverageRegions || []),
       isHot: !isDevice.value && badgeMark.value === 'hot',
       isFeatured: !isDevice.value && badgeMark.value === 'featured',
-      isPhysical: isDevice.value ? false : physicalType.value === 1,
-      isPhysicalCard: isDevice.value ? 0 : physicalType.value,
-      skus: (isDevice.value ? form.skus.slice(0, 1) : form.skus || []).map((s: any, i: number) => ({
-        id: s.id,
-        skuCode: s.skuCode,
-        label: s.labelZh || s.label || (isDevice.value ? '默认' : ''),
-        labelZh: s.labelZh || s.label || (isDevice.value ? '默认' : ''),
-        labelEn: s.labelEn || (isDevice.value ? 'Default' : undefined),
-        months: isDevice.value ? 0 : s.months,
-        durationDays: isDevice.value ? 0 : s.durationDays,
-        salePrice: s.salePrice,
-        isDefault: isDevice.value ? true : !!s.isDefault,
-        status: s.status ?? 1,
-        sortOrder: i
-      }))
+      supportEsim: isDevice.value ? false : cardTypes.value.includes('ESIM'),
+      isPhysical: isDevice.value ? false : cardTypes.value.includes('PHYSICAL'),
+      isPhysicalCard: isDevice.value
+        ? 0
+        : (!cardTypes.value.includes('ESIM') && cardTypes.value.includes('PHYSICAL') ? 1 : 0),
+      skus: skuSource.map((s: any, i: number) => {
+        const esim = Number(s.salePrice ?? 0)
+        const physical = Number(s.physicalSalePrice ?? esim)
+        return {
+          id: s.id,
+          skuCode: s.skuCode,
+          label: s.labelZh || s.label || (isDevice.value ? '默认' : priceMode === 'FLAT' ? '一口价' : ''),
+          labelZh: s.labelZh || s.label || (isDevice.value ? '默认' : priceMode === 'FLAT' ? '一口价' : ''),
+          labelEn: s.labelEn || (isDevice.value ? 'Default' : priceMode === 'FLAT' ? 'Flat' : undefined),
+          months: isDevice.value || priceMode === 'FLAT' ? 0 : s.months,
+          durationDays: isDevice.value ? 0 : (s.durationDays ?? form.baseValidityDays ?? 0),
+          salePrice: cardTypes.value.includes('ESIM') || isDevice.value ? esim : physical,
+          physicalSalePrice: cardTypes.value.includes('PHYSICAL') || isDevice.value ? physical : esim,
+          isDefault: isDevice.value || priceMode === 'FLAT' ? true : !!s.isDefault,
+          status: s.status ?? 1,
+          sortOrder: i
+        }
+      })
     }
     const res = isEdit.value
       ? await productApi.update(Number(route.params.id), payload)
@@ -559,7 +677,8 @@ onMounted(async () => {
     if (!form.skus) form.skus = []
     form.skus = (form.skus || []).map((s: any) => ({
       ...s,
-      labelZh: s.labelZh || s.label || ''
+      labelZh: s.labelZh || s.label || '',
+      physicalSalePrice: s.physicalSalePrice != null ? s.physicalSalePrice : s.salePrice
     }))
     form.summaryZh = data.summaryZh ?? ''
     form.summaryEn = data.summaryEn ?? ''
@@ -570,7 +689,28 @@ onMounted(async () => {
     if (data.isHot) badgeMark.value = 'hot'
     else if (data.isFeatured) badgeMark.value = 'featured'
     else badgeMark.value = 'none'
-    physicalType.value = data.isPhysical || data.isPhysicalCard === 1 ? 1 : 0
+    {
+      const types: string[] = []
+      if (data.supportEsim != null || data.supportPhysical != null) {
+        if (data.supportEsim !== false && data.supportEsim !== 0) types.push('ESIM')
+        if (data.supportPhysical !== false && data.supportPhysical !== 0) types.push('PHYSICAL')
+      } else if (data.isPhysicalCard === 1 || data.isPhysical === true) {
+        types.push('PHYSICAL')
+      } else {
+        types.push('ESIM', 'PHYSICAL')
+      }
+      cardTypes.value = types.length ? types : ['ESIM', 'PHYSICAL']
+    }
+    {
+      const mode = String(data.priceMode || '').toUpperCase()
+      if (mode === 'FLAT' || mode === 'MONTHLY') {
+        form.priceMode = mode
+      } else {
+        const hasMonthly = (form.skus || []).some((s: any) => Number(s.months) > 0)
+        form.priceMode = hasMonthly ? 'MONTHLY' : 'FLAT'
+      }
+      if (form.priceMode === 'FLAT') ensureFlatSku()
+    }
     form.baseValidityDays = data.baseValidityDays ?? data.validityDays ?? 30
     form.coverageRegions = data.applicableRegions || data.coverageRegions || []
     const subId = data.subCategoryId || data.categoryId
@@ -673,6 +813,12 @@ onMounted(async () => {
   width: 100%;
 }
 
+.card-type-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
 .media-preview {
   margin: -4px 0 14px;
   width: 160px;
@@ -717,6 +863,9 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1.4fr 0.7fr 0.7fr 0.9fr;
   gap: 10px;
+}
+.sku-row__main--monthly {
+  grid-template-columns: 1.1fr 0.55fr 0.55fr 0.85fr 0.85fr;
 }
 
 .sku-row__main :deep(.el-input-number) {

@@ -226,7 +226,7 @@
                 </div>
               </div>
             </div>
-            <div class="product-price">${{ selectedProduct.price }} <span>USD</span></div>
+            <div class="product-price">${{ packagePrice.toFixed(2) }} <span>USD</span></div>
           </div>
           <!-- Plan Tags -->
           <div class="plan-info-tags" v-if="getPlanType(selectedProduct) != null || getSmsSupport(selectedProduct) != null || getTopupType(selectedProduct) != null">
@@ -257,7 +257,7 @@
           </div>
         </div>
 
-        <!-- SIM type tabs：不支持 eSIM 时仍展示，但 eSIM 禁用 -->
+        <!-- SIM type tabs：按商品勾选的交付方式展示 -->
         <div class="order-section">
           <div class="section-title">
             {{ $t('plans.deliveryTitle') }}
@@ -265,13 +265,14 @@
           </div>
           <div class="sim-tabs" role="tablist">
             <button
+              v-if="supportEsim"
               type="button"
               class="sim-tab"
-              :class="{ active: deliveryMode === 'esim', disabled: isPhysicalProduct }"
-              :disabled="isPhysicalProduct"
-              @click="!isPhysicalProduct && (deliveryMode = 'esim')"
+              :class="{ active: deliveryMode === 'esim' }"
+              @click="deliveryMode = 'esim'"
             >{{ $t('plans.deliveryEsim') }}</button>
             <button
+              v-if="supportPhysical"
               type="button"
               class="sim-tab"
               :class="{ active: deliveryMode === 'physical' }"
@@ -279,15 +280,16 @@
             >{{ $t('plans.deliveryPhysical') }}</button>
           </div>
           <p class="sim-hint">
-            {{ isPhysicalProduct
-              ? $t('plans.physicalOnlyHint')
-              : (deliveryMode === 'esim' ? $t('plans.deliveryEsimDesc') : $t('plans.deliveryPhysicalDesc')) }}
+            {{
+              supportPhysical && !supportEsim
+                ? $t('plans.physicalOnlyHint')
+                : (deliveryMode === 'esim' ? $t('plans.deliveryEsimDesc') : $t('plans.deliveryPhysicalDesc'))
+            }}
           </p>
 
-          <template v-if="deliveryMode === 'physical'">
+          <template v-if="deliveryMode === 'physical' && devices.length > 0">
             <div class="section-title" style="margin-top: 14px;">
               {{ $t('plans.pickDevice') }}
-              <span class="section-required">*</span>
             </div>
             <div class="device-options">
               <label
@@ -299,54 +301,25 @@
                 <input type="checkbox" :value="device.id" v-model="selectedDevices" />
                 <div class="device-content">
                   <div class="device-info">
-                    <div class="device-name-row">
-                      <span class="device-name">{{ deviceDisplayName(device) }}</span>
-                      <el-tooltip
-                        placement="top"
-                        :show-after="200"
-                        popper-class="device-detail-tooltip"
-                      >
-                        <template #content>
-                          <div class="device-tip">
-                            <div class="device-tip-title">{{ deviceDisplayName(device) }}</div>
-                            <div v-if="deviceDisplayDesc(device)" class="device-tip-desc">{{ deviceDisplayDesc(device) }}</div>
-                            <div class="device-tip-price">
-                              {{ device.isFree ? $t('phoneNumbers.free') : ('$' + Number(device.price || 0).toFixed(2)) }}
-                            </div>
-                          </div>
-                        </template>
-                        <button
-                          type="button"
-                          class="device-info-btn"
-                          :aria-label="locale === 'zh' ? '详情' : 'Details'"
-                          @click.prevent.stop
-                        >i</button>
-                      </el-tooltip>
-                    </div>
+                    <span class="device-name">{{ deviceDisplayName(device) }}</span>
                     <span v-if="deviceDisplayDesc(device)" class="device-desc">{{ deviceDisplayDesc(device) }}</span>
                   </div>
                   <span class="device-price">{{ device.isFree ? $t('phoneNumbers.free') : '$' + device.price.toFixed(2) }}</span>
                 </div>
               </label>
             </div>
-            <div class="shipping-note" v-if="hasDevice">
-              <svg class="shipping-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-              {{ $t('checkout.shippingNote') }} <strong>{{ siteConfig.formatShippingFee() }}</strong>
-            </div>
           </template>
         </div>
 
-        <!-- Pricing Tiers -->
-        <div class="order-section tier-section" v-if="productPricingTiers.length > 0">
+        <!-- Pricing Tiers：仅月份定价展示周期档，一口价不展示 SKU/档位 -->
+        <div class="order-section tier-section" v-if="isMonthlyPricing">
           <div class="section-title">
             选择购买周期
             <span class="required-hint">*</span>
           </div>
           <div class="tier-chips">
             <label
-              v-for="tier in productPricingTiers"
+              v-for="tier in monthlyTiers"
               :key="tier.id"
               class="tier-chip"
               :class="{ selected: selectedTier?.id === tier.id }">
@@ -357,16 +330,16 @@
                   <span v-if="tier.label" class="tier-chip-badge">{{ tier.label }}</span>
                 </div>
                 <div class="tier-chip-prices">
-                  <span class="tier-chip-total">¥{{ tier.totalPrice }}</span>
-                  <span class="tier-chip-monthly">{{ (tier.totalPrice / tier.months).toFixed(2) }}/月</span>
+                  <span class="tier-chip-total">${{ tierPrice(tier).toFixed(2) }}</span>
+                  <span class="tier-chip-monthly">${{ (tierPrice(tier) / tier.months).toFixed(2) }}/月</span>
                 </div>
               </div>
             </label>
           </div>
         </div>
 
-        <!-- Shipping Address -->
-        <div class="order-section shipping-address-section" v-if="hasDevice">
+        <!-- Shipping Address：实体卡必须填地址（运费已含在一口价/套餐价中） -->
+        <div class="order-section shipping-address-section" v-if="needsShipping">
           <div class="section-title">
             {{ $t('checkout.shippingAddress') }}
             <span class="required-hint">*</span>
@@ -423,21 +396,20 @@
           />
         </div>
 
-        <!-- Order Summary: only when physical device selected -->
-        <div v-if="hasDevice" class="order-section order-summary">
+        <!-- Order Summary：有设备费用时展示明细；一口价不展示 SKU -->
+        <div v-if="deviceTotal > 0 || needsShipping" class="order-section order-summary">
           <div class="section-title">{{ $t('phoneNumbers.orderSummary') }}</div>
           <div class="summary-row">
             <span>{{ $t('checkout.packageFee') }}</span>
-            <span v-if="selectedTier">${{ selectedTier.totalPrice }} USD <small style="color:#999;font-size:11px;">（{{ selectedTier.months }}个月 × ${{ selectedTier.pricePerMonth }}/月）</small></span>
-            <span v-else>${{ selectedProduct.price }} USD</span>
+            <span v-if="isMonthlyPricing && selectedTier">
+              ${{ tierPrice(selectedTier).toFixed(2) }} USD
+              <small style="color:#999;font-size:11px;">（{{ selectedTier.months }}个月）</small>
+            </span>
+            <span v-else>${{ packagePrice.toFixed(2) }} USD</span>
           </div>
-          <div class="summary-row">
+          <div class="summary-row" v-if="deviceTotal > 0">
             <span>{{ $t('phoneNumbers.deviceFee') }}</span>
             <span>${{ deviceTotal.toFixed(2) }} USD</span>
-          </div>
-          <div class="summary-row shipping-row">
-            <span>{{ $t('phoneNumbers.expressFee') }}</span>
-            <span>{{ siteConfig.formatShippingFee() }}</span>
           </div>
           <div class="summary-row" v-if="appliedDiscount > 0">
             <span>{{ $t('checkout.couponDiscount') }}</span>
@@ -459,7 +431,7 @@
             </div>
             <div class="coupon-tip" v-if="couponMessage" :class="{ error: !couponApplied }">{{ couponMessage }}</div>
           </div>
-          <div class="summary-row total-row" v-if="productPricingTiers.length === 0 || selectedTier">
+          <div class="summary-row total-row" v-if="!isMonthlyPricing || selectedTier">
             <span>{{ $t('phoneNumbers.total') }}</span>
             <span>${{ payablePrice.toFixed(2) }} USD</span>
           </div>
@@ -566,7 +538,6 @@ import PurchaseNoticeDialog from '@/components/PurchaseNoticeDialog.vue'
 import GuestCheckoutEmailDialog from '@/components/GuestCheckoutEmailDialog.vue'
 import { getCurrentLocale } from '@/i18n'
 import { formatCountriesForDisplay, getCountryFlagEmoji } from '@/utils/countryDisplay'
-import { useSiteConfigStore } from '@/stores/siteConfig'
 import { navigateToLogin } from '@/utils/authNavigation'
 import { navigateByPaymentMethod } from '@/utils/stripeCheckout'
 import { getPaymentMethodLabel, getPaymentMethodDesc } from '@/utils/paymentMethodLabel'
@@ -587,7 +558,6 @@ function deviceDisplayDesc(device: Device) {
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const siteConfig = useSiteConfigStore()
 
 const phoneProducts = ref<Product[]>([])  // 兼容旧逻辑：手机号卡列表缓存
 const dataProducts = ref<Product[]>([])   // 兼容旧逻辑：其他分类列表缓存
@@ -713,8 +683,38 @@ const guestEmailDialogVisible = ref(false)
 const devices = ref<Device[]>([]) // 从数据库加载的设备列表
 
 // 定价档位
-const productPricingTiers = ref<ProductPricingTier[]>([])
+const allPricingTiers = ref<ProductPricingTier[]>([])
 const selectedTier = ref<ProductPricingTier | null>(null)
+const monthlyTiers = computed(() => allPricingTiers.value.filter((t) => Number(t.months) > 0))
+const isMonthlyPricing = computed(() => {
+  const mode = String((selectedProduct.value as any)?.priceMode || '').toUpperCase()
+  if (mode === 'FLAT') return false
+  return monthlyTiers.value.length > 0
+})
+
+function tierPrice(tier: any) {
+  if (!tier) return 0
+  if (deliveryMode.value === 'physical') {
+    return Number(tier.physicalSalePrice ?? tier.totalPrice ?? tier.salePrice ?? tier.price ?? 0)
+  }
+  return Number(tier.salePrice ?? tier.totalPrice ?? tier.price ?? 0)
+}
+
+function flatPackagePrice() {
+  const p = selectedProduct.value as any
+  if (!p) return 0
+  if (deliveryMode.value === 'physical') {
+    return Number(p.physicalPrice ?? p.price ?? 0)
+  }
+  return Number(p.price ?? 0)
+}
+
+function resolveOrderSkuId() {
+  if (selectedTier.value?.id) return selectedTier.value.id
+  const flat = allPricingTiers.value.find((t) => !(Number(t.months) > 0))
+  if (flat?.id) return flat.id
+  return (selectedProduct.value as any)?.defaultSkuId
+}
 
 // 收货地址表单
 const shippingAddress = ref({
@@ -727,8 +727,6 @@ const shippingAddress = ref({
 })
 const customerRemark = ref('')
 
-const SHIPPING_FEE = computed(() => Number(siteConfig.defaultShippingFee ?? 0))
-
 // 计算设备总价（使用数据库中的价格）
 const deviceTotal = computed(() => {
   return selectedDevices.value.reduce((sum, deviceId) => {
@@ -737,40 +735,63 @@ const deviceTotal = computed(() => {
   }, 0)
 })
 
-const isPhysicalProduct = computed(() => {
-  const p = selectedProduct.value as any
-  return !!(p?.isPhysicalCard === 1 || p?.isPhysicalCard === true || p?.isPhysical)
-})
+function resolveDeliverySupport(p: any) {
+  if (!p) return { esim: true, physical: true }
+  const hasNew =
+    p.supportEsim != null || p.supportPhysical != null
+  if (hasNew) {
+    return {
+      esim: p.supportEsim !== false && p.supportEsim !== 0,
+      physical: p.supportPhysical !== false && p.supportPhysical !== 0
+    }
+  }
+  // 旧数据：实体卡仅实体；否则两者都可
+  const physicalOnly = !!(p.isPhysicalCard === 1 || p.isPhysicalCard === true || p.isPhysical === true)
+  return { esim: !physicalOnly, physical: true }
+}
+
+const supportEsim = computed(() => resolveDeliverySupport(selectedProduct.value as any).esim)
+const supportPhysical = computed(() => resolveDeliverySupport(selectedProduct.value as any).physical)
 const hasDevice = computed(() => deliveryMode.value === 'physical' && selectedDevices.value.length > 0)
+const needsShipping = computed(() => deliveryMode.value === 'physical')
+
+function syncDeliveryMode() {
+  const esim = supportEsim.value
+  const physical = supportPhysical.value
+  if (esim && physical) {
+    if (deliveryMode.value !== 'esim' && deliveryMode.value !== 'physical') {
+      deliveryMode.value = 'esim'
+    }
+    return
+  }
+  if (physical && !esim) deliveryMode.value = 'physical'
+  else if (esim && !physical) deliveryMode.value = 'esim'
+}
 
 watch(deliveryMode, (mode) => {
-  if (isPhysicalProduct.value && mode === 'esim') {
+  if (mode === 'esim' && !supportEsim.value && supportPhysical.value) {
     deliveryMode.value = 'physical'
+    return
+  }
+  if (mode === 'physical' && !supportPhysical.value && supportEsim.value) {
+    deliveryMode.value = 'esim'
     return
   }
   if (mode === 'esim') selectedDevices.value = []
 })
 
-watch(isPhysicalProduct, (v) => {
-  if (v) deliveryMode.value = 'physical'
-  else if (!selectedProduct.value) deliveryMode.value = 'esim'
-})
+watch([supportEsim, supportPhysical], () => syncDeliveryMode())
 
-// 运费：选购任意数量设备，整单只收一次
-const shippingFeeAmount = computed(() => {
-  if (!hasDevice.value) return 0
-  return SHIPPING_FEE.value
-})
-
-// 套餐实际价格（选了档位则用档位总价，否则用产品原价）
+// 套餐实际价格：月份档按交付方式取价；一口价用产品价
 const packagePrice = computed(() => {
-  if (selectedTier.value) return selectedTier.value.totalPrice
+  if (isMonthlyPricing.value && selectedTier.value) return tierPrice(selectedTier.value)
+  if (!isMonthlyPricing.value) return flatPackagePrice()
   return selectedProduct.value?.price || 0
 })
 
-// 订单总价
+// 订单总价（运费已含在套餐价中）
 const orderTotal = computed(() => {
-  return packagePrice.value + deviceTotal.value + shippingFeeAmount.value
+  return packagePrice.value + deviceTotal.value
 })
 
 const couponInput = ref('')
@@ -1094,11 +1115,14 @@ async function openDetail(product: Product) {
   selectedProduct.value = product
   // 重置表单
   esimOption.value = 'esim'
-  deliveryMode.value = (product as any)?.isPhysicalCard ? 'physical' : 'esim'
+  {
+    const s = resolveDeliverySupport(product as any)
+    deliveryMode.value = s.esim ? 'esim' : 'physical'
+  }
   selectedDevices.value = []
   paymentMethod.value = 'usdt'
   selectedTier.value = null
-  productPricingTiers.value = []
+  allPricingTiers.value = []
   // 重置收货地址
   shippingAddress.value = {
     name: '',
@@ -1114,7 +1138,7 @@ async function openDetail(product: Product) {
   try {
     const res: any = await pricingTierApi.getActiveByProduct(product.id)
     if (res.code === 200) {
-      productPricingTiers.value = (res.data || []).map((t: any) => {
+      allPricingTiers.value = (res.data || []).map((t: any) => {
         const months = Number(t.months) || 0
         const total = Number(t.totalPrice ?? t.salePrice ?? t.price ?? 0)
         const perMonth = Number(t.pricePerMonth) || (months > 0 ? total / months : total)
@@ -1122,32 +1146,33 @@ async function openDetail(product: Product) {
           ...t,
           months,
           totalPrice: total,
+          salePrice: Number(t.salePrice ?? total),
+          physicalSalePrice: Number(t.physicalSalePrice ?? t.salePrice ?? total),
           pricePerMonth: perMonth
         }
       })
-      selectedTier.value = productPricingTiers.value.find((t: any) => t.isDefault)
-        || productPricingTiers.value[0]
-        || null
+      if (isMonthlyPricing.value) {
+        selectedTier.value = monthlyTiers.value.find((t: any) => t.isDefault)
+          || monthlyTiers.value[0]
+          || null
+      } else {
+        selectedTier.value = null
+      }
     }
   } catch (e) {
-    productPricingTiers.value = []
+    allPricingTiers.value = []
   }
 }
 
 async function handleBuyNow() {
   // 如果有月份定价，必须选择周期
-  if (productPricingTiers.value.length > 0 && !selectedTier.value) {
+  if (isMonthlyPricing.value && !selectedTier.value) {
     ElMessage.warning('请选择购买周期')
     return
   }
-  
-  if (deliveryMode.value === 'physical' && selectedDevices.value.length === 0) {
-    ElMessage.warning(t('plans.physicalRequiresDevice') || '请选择至少一个配套设备')
-    return
-  }
-  
-  // 验证收货地址（选择设备时必填）
-  if (hasDevice.value) {
+
+  // 实体卡必须填收货地址（设备可选，无设备时不展示）
+  if (needsShipping.value) {
     if (!shippingAddress.value.name) {
       ElMessage.warning(t('checkout.nameRequired') || '请填写收货人姓名')
       return
@@ -1206,24 +1231,23 @@ async function submitOrderAfterNotice(emailInput: string) {
   placingOrder.value = true
 
   try {
-    await siteConfig.ensureShippingFee()
     const paymentMethodUpper = paymentMethod.value.toUpperCase()
+    const skuId = resolveOrderSkuId()
     const orderData: any = {
       email,
       paymentMethod: paymentMethodUpper,
       productId: selectedProduct.value.id,
+      deliveryMode: deliveryMode.value,
       devices: selectedDevices.value.map(id => String(id)),
       totalAmount: orderTotal.value,
       couponCode: appliedCode.value || undefined,
       language: getCurrentLocale(),
       customerRemark: customerRemark.value.trim() || undefined,
-      ...(selectedTier.value ? {
-        pricingTierId: selectedTier.value.id,
-        selectedMonths: selectedTier.value.months
-      } : {})
+      ...(skuId ? { skuId, pricingTierId: skuId } : {}),
+      ...(selectedTier.value ? { selectedMonths: selectedTier.value.months, periodValue: selectedTier.value.months } : {})
     }
-    
-    if (hasDevice.value) {
+
+    if (needsShipping.value) {
       const addr = shippingAddress.value
       orderData.shippingAddress = `${addr.name} ${addr.phone} ${addr.province} ${addr.city} ${addr.postalCode || ''} ${addr.address}`
     }
@@ -2309,42 +2333,14 @@ a.product-card {
 .device-option.selected::after { content: 'v'; position: absolute; left: 20px; top: 12px; color: #fff; font-size: 11px; font-weight: bold; }
 .device-content { display: flex; align-items: flex-start; gap: 10px; width: 100%; margin-left: 8px; }
 .device-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-.device-name-row { display: flex; align-items: center; gap: 6px; }
 .device-name { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.device-info-btn {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid var(--text-muted, #94a3b8);
-  background: transparent;
-  color: var(--text-muted, #64748b);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: help;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-}
-.device-info-btn:hover {
-  border-color: var(--accent-primary, #003ec7);
-  color: var(--accent-primary, #003ec7);
-}
 .device-desc {
   display: block;
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
+  white-space: pre-wrap;
 }
-.device-tip { max-width: 260px; }
-.device-tip-title { font-weight: 700; margin-bottom: 6px; }
-.device-tip-desc { font-size: 12px; line-height: 1.5; opacity: 0.92; white-space: pre-wrap; }
-.device-tip-price { margin-top: 8px; font-weight: 700; }
 .device-price { font-size: 13px; font-weight: 600; color: var(--accent-primary); white-space: nowrap; align-self: flex-start; }
 
 .shipping-note {
