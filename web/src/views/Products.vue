@@ -326,12 +326,12 @@
               <input type="radio" :value="tier" v-model="selectedTier" />
               <div class="tier-chip-content">
                 <div class="tier-chip-main">
-                  <span class="tier-chip-months">{{ tier.months }}个月</span>
-                  <span v-if="tier.label" class="tier-chip-badge">{{ tier.label }}</span>
+                  <span class="tier-chip-months">{{ formatTierMonths(tier) }}</span>
+                  <span v-if="tierBadge(tier)" class="tier-chip-badge">{{ tierBadge(tier) }}</span>
                 </div>
                 <div class="tier-chip-prices">
                   <span class="tier-chip-total">${{ tierPrice(tier).toFixed(2) }}</span>
-                  <span class="tier-chip-monthly">${{ (tierPrice(tier) / tier.months).toFixed(2) }}/月</span>
+                  <span class="tier-chip-monthly">${{ (tierPrice(tier) / Math.max(1, Number(tier.months) || 1)).toFixed(2) }}/月</span>
                 </div>
               </div>
             </label>
@@ -698,6 +698,31 @@ function tierPrice(tier: any) {
     return Number(tier.physicalSalePrice ?? tier.totalPrice ?? tier.salePrice ?? tier.price ?? 0)
   }
   return Number(tier.salePrice ?? tier.totalPrice ?? tier.price ?? 0)
+}
+
+function formatTierMonths(tier: any) {
+  const months = Number(tier?.months) || 0
+  if (!months) return locale.value === 'zh' ? '按次' : 'Once'
+  return locale.value === 'zh' ? `${months}个月` : `${months} mo`
+}
+
+/** 仅展示营销角标；隐藏 SKU 编码与纯周期重复文案 */
+function tierBadge(tier: any) {
+  const label = String(tier?.label || '').trim()
+  if (!label) return ''
+  if (/^SKU/i.test(label)) return ''
+  const months = String(tier?.months || '')
+  const repeats = [
+    months,
+    `${months}个月`,
+    `${months} mo`,
+    `${months} Month`,
+    `${months} Months`,
+    '1 个月',
+    '1 Month'
+  ]
+  if (repeats.includes(label)) return ''
+  return label
 }
 
 function flatPackagePrice() {

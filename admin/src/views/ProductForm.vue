@@ -675,11 +675,16 @@ onMounted(async () => {
     const data = res.data || {}
     Object.assign(form, data)
     if (!form.skus) form.skus = []
-    form.skus = (form.skus || []).map((s: any) => ({
-      ...s,
-      labelZh: s.labelZh || s.label || '',
-      physicalSalePrice: s.physicalSalePrice != null ? s.physicalSalePrice : s.salePrice
-    }))
+    form.skus = (form.skus || []).map((s: any) => {
+      const rawLabel = String(s.labelZh || s.label || '').trim()
+      // 历史误把 skuCode 当标签，加载时清空，避免再次写回前台
+      const labelZh = /^SKU/i.test(rawLabel) ? '' : rawLabel
+      return {
+        ...s,
+        labelZh,
+        physicalSalePrice: s.physicalSalePrice != null ? s.physicalSalePrice : s.salePrice
+      }
+    })
     form.summaryZh = data.summaryZh ?? ''
     form.summaryEn = data.summaryEn ?? ''
     notesZhText.value = data.notesZh ?? ''

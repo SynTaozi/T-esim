@@ -11,4 +11,6 @@ public class FaqVO {
     private String question;
     private String answer;
     private Integer sortOrder;
+    /** 公开接口仅返回上架项；保留字段兼容前台过滤逻辑 */
+    private Integer status;
 }

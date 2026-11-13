@@ -142,6 +142,11 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
             if (perMonth == null && sku.getMonths() != null && sku.getMonths() > 0) {
                 perMonth = sale.divide(BigDecimal.valueOf(sku.getMonths()), 2, java.math.RoundingMode.HALF_UP);
             }
+            String label = i18n != null ? i18n.getLabel() : null;
+            // 历史误把 skuCode 写入 label 时，前台不展示
+            if (StringUtils.hasText(label) && label.trim().regionMatches(true, 0, "SKU", 0, 3)) {
+                label = null;
+            }
             return PricingTierVO.builder()
                     .id(sku.getId())
                     .productId(sku.getProductId())
@@ -153,7 +158,7 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
                     .pricePerMonth(perMonth)
                     .originalPrice(sku.getOriginalPrice())
                     .durationDays(sku.getDurationDays())
-                    .label(i18n != null ? i18n.getLabel() : null)
+                    .label(label)
                     .isDefault(sku.getIsDefault())
                     .sortOrder(sku.getSortOrder())
                     .isActive(1)

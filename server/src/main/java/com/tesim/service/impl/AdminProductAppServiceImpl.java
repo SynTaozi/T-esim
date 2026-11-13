@@ -732,7 +732,8 @@ public class AdminProductAppServiceImpl implements AdminProductAppService {
                 .id(sku.getId())
                 .productId(sku.getProductId())
                 .skuCode(sku.getSkuCode())
-                .label(zh != null ? zh.getLabel() : sku.getSkuCode())
+                // 勿回退到 skuCode，否则管理端再保存会把 SKU 编码写进前台展示标签
+                .label(zh != null ? zh.getLabel() : null)
                 .labelEn(en != null ? en.getLabel() : null)
                 .months(sku.getMonths())
                 .durationDays(sku.getDurationDays())

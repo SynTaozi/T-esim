@@ -188,20 +188,21 @@ const selectedCategory = computed(() => {
 })
 
 const filteredFAQs = computed(() => {
-  let result = faqs.value.filter(faq => faq.status === 1)
-  
+  // 公开接口已只返回上架数据，且 VO 不含 status；勿再按 status 过滤
+  let result = [...faqs.value]
+
   if (selectedCategoryId.value) {
     result = result.filter(faq => Number(faq.categoryId) === Number(selectedCategoryId.value))
   }
-  
+
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(faq => 
+    result = result.filter(faq =>
       getFAQQuestion(faq).toLowerCase().includes(query) ||
       getFAQAnswer(faq).toLowerCase().includes(query)
     )
   }
-  
+
   return result
 })
 
@@ -215,23 +216,28 @@ async function loadData() {
     const catRes = await faqApi.getCategories()
     if (catRes?.code === 200 && catRes?.data) {
       const uniqueMap = new Map()
-      catRes.data
-        .filter((cat: any) => cat.status === 1)
-        .forEach((cat: any) => {
-          const key = cat.name || cat.nameEn
-          if (key && !uniqueMap.has(key)) {
-            uniqueMap.set(key, cat)
-          }
-        })
+      // 公开分类接口已过滤上架，且不含 status
+      ;(catRes.data || []).forEach((cat: any) => {
+        const key = cat.name || cat.nameEn || cat.id
+        if (key != null && !uniqueMap.has(key)) {
+          uniqueMap.set(key, cat)
+        }
+      })
       categories.value = Array.from(uniqueMap.values())
     }
-    
+
     const faqRes = await faqApi.getFAQs()
     if (faqRes?.code === 200 && faqRes?.data) {
       const uniqueFAQMap = new Map()
       faqRes.data.forEach((faq: any) => {
         if (!uniqueFAQMap.has(faq.id)) {
-          uniqueFAQMap.set(faq.id, faq)
+          uniqueFAQMap.set(faq.id, {
+            ...faq,
+            // 兼容展示字段：公开接口按 locale 返回 question/answer
+            status: faq.status ?? 1,
+            questionEn: faq.questionEn ?? (locale.value === 'en' ? faq.question : undefined),
+            answerEn: faq.answerEn ?? (locale.value === 'en' ? faq.answer : undefined)
+          })
         }
       })
       faqs.value = Array.from(uniqueFAQMap.values())
@@ -241,10 +247,6 @@ async function loadData() {
   } finally {
     loading.value = false
   }
-}
-
-function toggleLocale() {
-  _toggleLocale()
 }
 
 function getCategoryName(category: FAQCategory): string {
@@ -276,7 +278,7 @@ function getCategoryIcon(category: FAQCategory): string {
 }
 
 function getCategoryFAQCount(categoryId: number): number {
-  return faqs.value.filter(f => Number(f.categoryId) === categoryId && f.status === 1).length
+  return faqs.value.filter(f => Number(f.categoryId) === categoryId).length
 }
 
 function getFAQQuestion(faq: FAQ): string {

@@ -502,6 +502,8 @@ function formatTierMonths(tier: ProductPricingTier) {
 function tierBadge(tier: ProductPricingTier) {
   const label = (tier.label || '').trim()
   if (!label) return ''
+  // 不向前台展示 SKU 编码
+  if (/^SKU/i.test(label)) return ''
   // hide labels that only repeat the period text
   const months = String(tier.months || '')
   if (label === months || label === `${months}个月` || label === `${months} mo` || label === `${months} Month` || label === `${months} Months` || label === '1 个月' || label === '1 Month') {
