@@ -28,16 +28,20 @@
           </el-menu-item>
 
           <div v-show="!collapsed" class="nav-group">业务</div>
-          <el-sub-menu index="business">
+          <el-sub-menu index="business" class="menu-with-badge">
             <template #title>
               <el-icon><Goods /></el-icon>
               <span>业务管理</span>
+              <i v-if="chatBadge.hasUnread" class="nav-dot" aria-label="有未读咨询" />
             </template>
             <el-menu-item index="/products">产品管理</el-menu-item>
             <el-menu-item index="/product-categories">产品分类</el-menu-item>
             <el-menu-item index="/orders">订单管理</el-menu-item>
             <el-menu-item index="/tickets">工单管理</el-menu-item>
-            <el-menu-item index="/live-chat">在线咨询</el-menu-item>
+            <el-menu-item index="/live-chat" class="menu-with-badge">
+              <span>在线咨询</span>
+              <i v-if="chatBadge.hasUnread" class="nav-dot" aria-label="有未读咨询" />
+            </el-menu-item>
           </el-sub-menu>
 
           <div v-show="!collapsed" class="nav-group">配置</div>
@@ -99,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -112,10 +116,12 @@ import {
   Expand
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useChatBadgeStore } from '@/stores/chatBadge'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const chatBadge = useChatBadgeStore()
 const collapsed = ref(false)
 
 const currentRoute = computed(() => route.path)
@@ -152,10 +158,37 @@ const pageTitle = computed(() => {
 })
 
 function handleLogout() {
+  chatBadge.stop()
   authStore.logout()
   ElMessage.success('已退出登录')
   router.push('/login')
 }
+
+onMounted(() => {
+  if (authStore.isLoggedIn) {
+    chatBadge.start()
+  }
+})
+
+watch(
+  () => authStore.isLoggedIn,
+  (ok) => {
+    if (ok) chatBadge.start()
+    else chatBadge.stop()
+  }
+)
+
+// 进入/离开咨询页时刷新，确保已读后红点及时消失
+watch(
+  () => route.path,
+  (path) => {
+    if (path === '/live-chat' || path.startsWith('/live-chat')) {
+      chatBadge.refresh()
+    }
+  }
+)
+
+onBeforeUnmount(() => chatBadge.stop())
 </script>
 
 <style scoped>
@@ -312,5 +345,28 @@ function handleLogout() {
   min-height: 0;
   padding: 20px 24px 24px;
   overflow: auto;
+}
+
+.nav-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f56c6c;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.admin-layout.collapsed :deep(.menu-with-badge > .el-sub-menu__title) {
+  position: relative;
+}
+
+.admin-layout.collapsed :deep(.menu-with-badge > .el-sub-menu__title .nav-dot) {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  visibility: visible !important;
+  display: inline-block !important;
 }
 </style>

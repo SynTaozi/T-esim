@@ -102,6 +102,9 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { adminChatApi, adminChatWsUrl, type ChatMessage, type ChatSession } from '@/api/chat'
+import { useChatBadgeStore } from '@/stores/chatBadge'
+
+const chatBadge = useChatBadgeStore()
 
 const loading = ref(false)
 const sending = ref(false)
@@ -138,6 +141,7 @@ async function reload() {
       const still = rows.value.find((r) => r.id === activeId.value)
       if (still) active.value = still
     }
+    await chatBadge.refresh()
   } finally {
     loading.value = false
   }
@@ -151,6 +155,7 @@ async function openSession(s: ChatSession) {
   messages.value = res.data || []
   s.unreadAdmin = 0
   scrollBottom()
+  await chatBadge.refresh()
 }
 
 function upsertMessage(msg: ChatMessage) {
