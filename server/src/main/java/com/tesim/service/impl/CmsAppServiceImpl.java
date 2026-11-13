@@ -48,6 +48,7 @@ public class CmsAppServiceImpl implements CmsAppService {
                             .id(c.getId())
                             .name(i18n != null ? i18n.getName() : ("Category " + c.getId()))
                             .sortOrder(c.getSortOrder())
+                            .status(1)
                             .build();
                 }).toList();
     }
@@ -70,6 +71,7 @@ public class CmsAppServiceImpl implements CmsAppService {
                     .question(i18n != null ? i18n.getQuestion() : "")
                     .answer(i18n != null ? i18n.getAnswer() : "")
                     .sortOrder(f.getSortOrder())
+                    .status(1)
                     .build();
         }).toList();
     }
