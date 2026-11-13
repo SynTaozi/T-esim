@@ -54,9 +54,10 @@ public class DingtalkNotifyServiceImpl implements DingtalkNotifyService {
         if (!StringUtils.hasText(config.getWebhookUrl())) {
             throw new BizException("Webhook 未配置");
         }
-        String content = "[Tesim] 钉钉通知测试，此消息由管理员手动触发。";
+        // 机器人安全设置关键词为「新」，测试文案必须包含该字
+        String content = "【Tesim】新通知测试：钉钉机器人连通正常，此消息由管理员手动触发。";
         try {
-            sendExecutor.sendTextSync(config, "TEST", "测试消息", content);
+            sendExecutor.sendTextSync(config, "TEST", "新通知测试", content);
         } catch (Exception e) {
             sendExecutor.saveFailure(config.getId(), "TEST", "测试消息", content, e.getMessage());
             throw new BizException("测试发送失败：" + e.getMessage());

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class AdminTutorialCategoryVO {
     private Long id;
     private String name;
+    private String nameZh;
     private String nameEn;
     private String icon;
     private Integer sort;

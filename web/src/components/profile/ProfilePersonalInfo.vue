@@ -17,16 +17,9 @@
           </div>
           <div class="ppi-row">
             <span class="ppi-label">{{ $t('profile.phone') }}</span>
-            <input
-              class="ppi-input"
-              type="tel"
-              :value="form.phone"
-              placeholder="+86 138 0000 0000"
-              @input="(e) => (form as any).phone = (e.target as HTMLInputElement).value"
-            />
+            <span class="ppi-value">{{ form.phone?.trim() ? form.phone : '-' }}</span>
           </div>
         </div>
-        <button class="ppi-save" type="button" @click="handleSave">{{ $t('profile.saveChanges') }}</button>
       </section>
 
       <section class="ppi-card ppi-secure">
@@ -51,16 +44,9 @@ defineProps<{
   form: FormData
 }>()
 
-const emit = defineEmits<{
-  save: []
+defineEmits<{
   openPassword: []
 }>()
-
-function handleSave() {
-  emit('save')
-}
-
-defineExpose({ handleSave })
 </script>
 
 <style scoped>
@@ -141,32 +127,6 @@ defineExpose({ handleSave })
   color: var(--muted);
   text-align: right;
   word-break: break-all;
-}
-
-.ppi-input {
-  border: 0;
-  outline: none;
-  background: transparent;
-  text-align: right;
-  width: min(220px, 48vw);
-  font: 400 14px inherit;
-  color: var(--text);
-}
-
-.ppi-save {
-  margin-top: 14px;
-  height: 34px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 980px;
-  background: var(--blue);
-  color: #fff;
-  font: 600 13px inherit;
-  cursor: pointer;
-}
-
-.ppi-save:hover {
-  background: #0077ed;
 }
 
 .ppi-secure {

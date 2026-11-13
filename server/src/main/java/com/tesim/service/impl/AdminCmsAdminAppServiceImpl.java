@@ -863,9 +863,11 @@ public class AdminCmsAdminAppServiceImpl implements AdminCmsAdminAppService {
                 .eq(I18nCmsTutorialCategory::getCategoryId, c.getId()).eq(I18nCmsTutorialCategory::getLocale, "zh"));
         I18nCmsTutorialCategory en = i18nTutorialCategoryService.getOne(new LambdaQueryWrapper<I18nCmsTutorialCategory>()
                 .eq(I18nCmsTutorialCategory::getCategoryId, c.getId()).eq(I18nCmsTutorialCategory::getLocale, "en"));
+        String nameZh = zh != null ? zh.getName() : null;
         return AdminTutorialCategoryVO.builder()
                 .id(c.getId())
-                .name(zh != null ? zh.getName() : null)
+                .name(nameZh)
+                .nameZh(nameZh)
                 .nameEn(en != null ? en.getName() : null)
                 .icon(c.getIcon())
                 .sort(c.getSortOrder())

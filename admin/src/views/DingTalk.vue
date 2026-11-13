@@ -18,11 +18,13 @@
             </template>
           </el-table-column>
           <el-table-column label="描述" prop="description" min-width="160" show-overflow-tooltip />
-          <el-table-column label="操作" width="220" fixed="right">
+          <el-table-column label="操作" width="180" fixed="right">
             <template #default="{ row }">
-              <el-button size="small" type="primary" :icon="Edit" @click="openDialog(row)">编辑</el-button>
-              <el-button size="small" :icon="Connection" :loading="row._testing" @click="handleTest(row)">测试</el-button>
-              <el-button size="small" type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+              <div class="row-acts">
+                <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
+                <el-button link :loading="row._testing" @click="handleTest(row)">测试</el-button>
+                <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -127,7 +129,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Edit, Delete, Connection, Refresh } from '@element-plus/icons-vue'
+import { Plus, Refresh } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { dingtalkApi } from '@/api/dingtalk'
 
@@ -289,6 +291,16 @@ function typeTagType(type: string) {
 .tab-desc {
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+.row-acts {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.row-acts :deep(.el-button) {
+  margin: 0;
+  padding: 0 4px;
 }
 .filter-bar {
   display: flex;

@@ -47,7 +47,6 @@
           <ProfilePersonalInfo
             v-show="currentTab === 'profile'"
             :form="form"
-            @save="handleSave"
             @open-password="showPasswordDialog = true"
           />
 
@@ -1216,17 +1215,6 @@ async function handlePay(row: any) {
     orderId,
     email: authStore.user?.email,
     router,
-  })
-}
-
-// 保存资料
-function handleSave() {
-  import('@/api/index').then(({ default: request }) => {
-    request.put('/auth/profile', { phone: form.phone }).then(() => {
-      ElMessage.success(t('profile.saved'))
-    }).catch(() => {
-      ElMessage.error(t('common.saveFailed') || '保存失败')
-    })
   })
 }
 
