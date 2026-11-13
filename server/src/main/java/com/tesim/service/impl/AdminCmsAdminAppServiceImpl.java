@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -228,6 +229,18 @@ public class AdminCmsAdminAppServiceImpl implements AdminCmsAdminAppService {
         requireTutorialCategory(req.getCategoryId());
         CmsTutorial t = new CmsTutorial();
         applyTutorial(t, req);
+        if (!StringUtils.hasText(t.getContentType())) {
+            t.setContentType("ARTICLE");
+        }
+        // slug 为前台详情路径必填字段：未传则按英文/中文标题自动生成
+        if (!StringUtils.hasText(t.getSlug())) {
+            String seed = StringUtils.hasText(req.getSlug())
+                    ? req.getSlug()
+                    : (StringUtils.hasText(req.getTitleEn()) ? req.getTitleEn() : req.getTitle());
+            t.setSlug(ensureUniqueTutorialSlug(seed, null));
+        } else {
+            t.setSlug(ensureUniqueTutorialSlug(t.getSlug(), null));
+        }
         tutorialService.save(t);
         upsertTutorialI18n(t.getId(), "zh", req.getTitle(), req.getSummary(), req.getContent());
         upsertTutorialI18n(t.getId(), "en", req.getTitleEn(), req.getSummaryEn(), req.getContentEn());
@@ -238,6 +251,12 @@ public class AdminCmsAdminAppServiceImpl implements AdminCmsAdminAppService {
     public AdminTutorialVO updateTutorial(Long id, AdminTutorialRequest req) {
         CmsTutorial t = requireTutorial(id);
         applyTutorial(t, req);
+        if (StringUtils.hasText(req.getSlug())) {
+            t.setSlug(ensureUniqueTutorialSlug(req.getSlug(), id));
+        } else if (!StringUtils.hasText(t.getSlug())) {
+            String seed = StringUtils.hasText(req.getTitleEn()) ? req.getTitleEn() : req.getTitle();
+            t.setSlug(ensureUniqueTutorialSlug(seed, id));
+        }
         tutorialService.updateById(t);
         upsertTutorialI18n(id, "zh", req.getTitle(), req.getSummary(), req.getContent());
         upsertTutorialI18n(id, "en", req.getTitleEn(), req.getSummaryEn(), req.getContentEn());
@@ -736,12 +755,49 @@ public class AdminCmsAdminAppServiceImpl implements AdminCmsAdminAppService {
         }
     }
 
+    private String ensureUniqueTutorialSlug(String raw, Long excludeId) {
+        String base = slugify(raw);
+        if (!StringUtils.hasText(base)) {
+            base = "tutorial-" + System.currentTimeMillis();
+        }
+        String candidate = base;
+        int i = 2;
+        while (true) {
+            LambdaQueryWrapper<CmsTutorial> qw = new LambdaQueryWrapper<CmsTutorial>()
+                    .eq(CmsTutorial::getSlug, candidate);
+            if (excludeId != null) {
+                qw.ne(CmsTutorial::getId, excludeId);
+            }
+            if (tutorialService.count(qw) == 0) {
+                return candidate;
+            }
+            candidate = base + "-" + i++;
+            if (i > 1000) {
+                return base + "-" + System.currentTimeMillis();
+            }
+        }
+    }
+
+    private static String slugify(String input) {
+        if (!StringUtils.hasText(input)) {
+            return "";
+        }
+        String s = input.trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("[\\s_-]+", "-")
+                .replaceAll("^-+|-+$", "");
+        if (s.length() > 80) {
+            s = s.substring(0, 80).replaceAll("-+$", "");
+        }
+        return s;
+    }
+
     private void applyTutorial(CmsTutorial t, AdminTutorialRequest req) {
         if (req.getCategoryId() != null) {
             t.setCategoryId(req.getCategoryId());
         }
-        if (req.getSlug() != null) {
-            t.setSlug(req.getSlug());
+        if (StringUtils.hasText(req.getSlug())) {
+            t.setSlug(req.getSlug().trim());
         }
         if (req.getContentType() != null) {
             t.setContentType(req.getContentType());

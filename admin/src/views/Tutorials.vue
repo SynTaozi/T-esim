@@ -64,6 +64,9 @@
         </el-form-item>
         <el-form-item label="标题中文"><el-input v-model="itemForm.titleZh" /></el-form-item>
         <el-form-item label="标题英文"><el-input v-model="itemForm.titleEn" /></el-form-item>
+        <el-form-item label="Slug">
+          <el-input v-model="itemForm.slug" placeholder="可选，留空则按标题自动生成" />
+        </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="itemForm.contentType" style="width: 100%">
             <el-option label="文章 ARTICLE" value="ARTICLE" />
@@ -149,6 +152,7 @@ function editItem(row?: any) {
       categoryId: categories.value[0]?.id,
       titleZh: '',
       titleEn: '',
+      slug: '',
       contentType: 'ARTICLE',
       mediaUrl: '',
       contentZh: '',
@@ -157,6 +161,7 @@ function editItem(row?: any) {
     }
   )
   if (!itemForm.mediaUrl) itemForm.mediaUrl = ''
+  if (!itemForm.slug) itemForm.slug = ''
   itemVisible.value = true
 }
 
