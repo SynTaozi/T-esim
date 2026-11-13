@@ -447,7 +447,7 @@ async function placeOrderWithEmail(userEmail: string) {
         device: selectedDevice.value,
         totalAmount: totalPrice.value
       }),
-      shippingAddress: selectedDevice.value ? JSON.stringify(addressForm.value) : null,
+      shippingAddress: selectedDevice.value ? JSON.stringify(addressForm.value) : undefined,
       paymentMethod: paymentMethod.value,
       language: getCurrentLocale(),
       productId: product.value.id,

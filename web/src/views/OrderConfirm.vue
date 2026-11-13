@@ -368,7 +368,7 @@ function getSelectedDeviceInfo() {
 const selectedDeviceInfo = ref<Device | null>(null)
 
 function updateSelectedDeviceInfo() {
-  selectedDeviceInfo.value = getSelectedDeviceInfo()
+  selectedDeviceInfo.value = getSelectedDeviceInfo() ?? null
 }
 
 function getPaymentIcon(method: string) {
@@ -442,7 +442,7 @@ async function placeOrderWithEmail(userEmail: string) {
           device: orderData.value.selectedDevice,
           totalAmount: orderData.value.totalAmount
         }),
-        shippingAddress: orderData.value.selectedDevice ? JSON.stringify(orderData.value.addressForm) : null,
+        shippingAddress: orderData.value.selectedDevice ? JSON.stringify(orderData.value.addressForm) : undefined,
         paymentMethod: orderData.value.paymentMethod,
         language: getCurrentLocale(),
         productId: orderData.value.product?.id,
