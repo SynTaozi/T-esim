@@ -141,17 +141,30 @@ public class PhoneCatalogServiceImpl implements PhoneCatalogService {
         ProductSku sku = defaultSku(p.getId());
         BigDecimal price = sku != null && sku.getSalePrice() != null ? sku.getSalePrice() : BigDecimal.ZERO;
         boolean free = price.compareTo(BigDecimal.ZERO) <= 0;
+        String descZh = firstText(zh != null ? zh.getSummary() : null, zh != null ? zh.getDescription() : null);
+        String descEn = firstText(en != null ? en.getSummary() : null, en != null ? en.getDescription() : null);
+        String descCur = "en".equals(locale) ? firstText(descEn, descZh) : firstText(descZh, descEn);
         return PhoneDeviceVO.builder()
                 .id(p.getId())
-                .name(cur != null ? cur.getName() : p.getSpuCode())
+                .name(zh != null && StringUtils.hasText(zh.getName()) ? zh.getName() : (cur != null ? cur.getName() : p.getSpuCode()))
                 .nameEn(en != null ? en.getName() : null)
-                .description(cur != null ? cur.getDescription() : null)
-                .descriptionEn(en != null ? en.getDescription() : null)
+                .description(descCur)
+                .descriptionEn(descEn)
                 .price(price)
                 .isFree(free)
                 .deviceType(p.getProductKind())
                 .shippingFee(BigDecimal.ZERO)
                 .build();
+    }
+
+    private static String firstText(String a, String b) {
+        if (StringUtils.hasText(a)) {
+            return a.trim();
+        }
+        if (StringUtils.hasText(b)) {
+            return b.trim();
+        }
+        return null;
     }
 
     private ProductSku defaultSku(Long productId) {

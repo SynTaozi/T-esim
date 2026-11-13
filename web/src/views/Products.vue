@@ -299,8 +299,31 @@
                 <input type="checkbox" :value="device.id" v-model="selectedDevices" />
                 <div class="device-content">
                   <div class="device-info">
-                    <span class="device-name">{{ locale === 'zh' ? device.name : device.nameEn }}</span>
-                    <span class="device-desc">{{ locale === 'zh' ? device.description : device.descriptionEn }}</span>
+                    <div class="device-name-row">
+                      <span class="device-name">{{ deviceDisplayName(device) }}</span>
+                      <el-tooltip
+                        placement="top"
+                        :show-after="200"
+                        popper-class="device-detail-tooltip"
+                      >
+                        <template #content>
+                          <div class="device-tip">
+                            <div class="device-tip-title">{{ deviceDisplayName(device) }}</div>
+                            <div v-if="deviceDisplayDesc(device)" class="device-tip-desc">{{ deviceDisplayDesc(device) }}</div>
+                            <div class="device-tip-price">
+                              {{ device.isFree ? $t('phoneNumbers.free') : ('$' + Number(device.price || 0).toFixed(2)) }}
+                            </div>
+                          </div>
+                        </template>
+                        <button
+                          type="button"
+                          class="device-info-btn"
+                          :aria-label="locale === 'zh' ? '详情' : 'Details'"
+                          @click.prevent.stop
+                        >i</button>
+                      </el-tooltip>
+                    </div>
+                    <span v-if="deviceDisplayDesc(device)" class="device-desc">{{ deviceDisplayDesc(device) }}</span>
                   </div>
                   <span class="device-price">{{ device.isFree ? $t('phoneNumbers.free') : '$' + device.price.toFixed(2) }}</span>
                 </div>
@@ -551,6 +574,16 @@ import { getPaymentMethodLabel, getPaymentMethodDesc } from '@/utils/paymentMeth
 const CARD_COUNTRY_MAX = 4
 
 const { locale, t } = useI18n({ useScope: 'global' })
+
+function deviceDisplayName(device: Device) {
+  if (locale.value === 'zh') return device.name || device.nameEn || ''
+  return device.nameEn || device.name || ''
+}
+
+function deviceDisplayDesc(device: Device) {
+  if (locale.value === 'zh') return device.description || device.descriptionEn || ''
+  return device.descriptionEn || device.description || ''
+}
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -2276,8 +2309,42 @@ a.product-card {
 .device-option.selected::after { content: 'v'; position: absolute; left: 20px; top: 12px; color: #fff; font-size: 11px; font-weight: bold; }
 .device-content { display: flex; align-items: flex-start; gap: 10px; width: 100%; margin-left: 8px; }
 .device-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.device-name-row { display: flex; align-items: center; gap: 6px; }
 .device-name { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.device-desc { display: block; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.device-info-btn {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted, #94a3b8);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+.device-info-btn:hover {
+  border-color: var(--accent-primary, #003ec7);
+  color: var(--accent-primary, #003ec7);
+}
+.device-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.device-tip { max-width: 260px; }
+.device-tip-title { font-weight: 700; margin-bottom: 6px; }
+.device-tip-desc { font-size: 12px; line-height: 1.5; opacity: 0.92; white-space: pre-wrap; }
+.device-tip-price { margin-top: 8px; font-weight: 700; }
 .device-price { font-size: 13px; font-weight: 600; color: var(--accent-primary); white-space: nowrap; align-self: flex-start; }
 
 .shipping-note {

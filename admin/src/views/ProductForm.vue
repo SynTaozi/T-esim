@@ -12,7 +12,7 @@
         <div class="form-main">
           <!-- 标题 -->
           <section class="form-card">
-            <h3 class="card-title">标题</h3>
+            <h3 class="card-title">{{ isDevice ? '设备信息' : '标题' }}</h3>
             <el-form-item label="中文名称" required>
               <el-input v-model="form.nameZh" size="large" placeholder="前台展示的中文名" />
             </el-form-item>
@@ -22,19 +22,33 @@
             <el-row :gutter="16">
               <el-col :span="12">
                 <el-form-item label="中文简介">
-                  <el-input v-model="form.summaryZh" type="textarea" :rows="2" placeholder="详情页标题下方短文案" />
+                  <el-input
+                    v-model="form.summaryZh"
+                    type="textarea"
+                    :rows="isDevice ? 3 : 2"
+                    placeholder="前台悬停/列表展示的中文简介"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="英文简介">
-                  <el-input v-model="form.summaryEn" type="textarea" :rows="2" placeholder="Short blurb under title" />
+                  <el-input
+                    v-model="form.summaryEn"
+                    type="textarea"
+                    :rows="isDevice ? 3 : 2"
+                    placeholder="English summary for storefront"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
+            <el-form-item v-if="isDevice" label="价格 (USD)" required>
+              <el-input-number v-model="devicePrice" :min="0" :precision="2" :controls="false" style="width: 220px" />
+              <div class="field-hint">设备为单一定价，0 表示免费</div>
+            </el-form-item>
           </section>
 
-          <!-- 媒体 -->
-          <section class="form-card">
+          <!-- 媒体（非 DEVICE） -->
+          <section v-if="!isDevice" class="form-card">
             <h3 class="card-title">媒体</h3>
             <el-form-item label="展示图 URL">
               <el-input v-model="form.displayImageUrl" placeholder="https://..." clearable />
@@ -45,8 +59,8 @@
             </div>
           </section>
 
-          <!-- 覆盖与规格 -->
-          <section class="form-card">
+          <!-- 覆盖与规格（非 DEVICE） -->
+          <section v-if="!isDevice" class="form-card">
             <h3 class="card-title">覆盖与规格</h3>
             <el-form-item label="覆盖区域">
               <el-select
@@ -77,8 +91,8 @@
             </el-row>
           </section>
 
-          <!-- 说明与特性 -->
-          <section class="form-card">
+          <!-- 说明与特性（非 DEVICE） -->
+          <section v-if="!isDevice" class="form-card">
             <div class="card-title-row">
               <h3 class="card-title">说明与特性</h3>
               <el-radio-group v-model="contentLangTab" size="small">
@@ -106,8 +120,8 @@
             </template>
           </section>
 
-          <!-- 定价档 -->
-          <section class="form-card">
+          <!-- 定价档（非 DEVICE） -->
+          <section v-if="!isDevice" class="form-card">
             <div class="card-title-row">
               <h3 class="card-title">定价档</h3>
               <el-button type="primary" plain size="small" @click="addSku">添加档位</el-button>
@@ -136,7 +150,41 @@
         </div>
 
         <aside class="form-side">
-          <section class="form-card side-card sticky-card">
+          <!-- 产品类型优先置顶 -->
+          <section class="form-card side-card">
+            <h3 class="card-title">产品类型</h3>
+            <el-form-item label="类型" required>
+              <el-select v-model="form.productKind" style="width: 100%" @change="onProductKindChange">
+                <el-option label="ESIM 流量套餐" value="ESIM" />
+                <el-option label="PHONE 手机号" value="PHONE" />
+                <el-option label="DEVICE 配套设备" value="DEVICE" />
+              </el-select>
+              <div class="field-hint">先选择类型；DEVICE 仅需名称/简介/价格等基础字段</div>
+            </el-form-item>
+            <template v-if="!isDevice">
+              <el-form-item label="大分类">
+                <div class="select-with-action">
+                  <el-select v-model="rootId" clearable placeholder="选择大类" style="flex: 1" @change="onRootChange">
+                    <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
+                  </el-select>
+                  <el-button @click="openCatDialog('root')">+</el-button>
+                </div>
+              </el-form-item>
+              <el-form-item label="二级分类">
+                <div class="select-with-action">
+                  <el-select v-model="form.categoryId" clearable placeholder="可选，选择二级分类" style="flex: 1">
+                    <el-option v-for="c in children" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
+                  </el-select>
+                  <el-button @click="openCatDialog('child')">+</el-button>
+                </div>
+              </el-form-item>
+              <el-form-item label="SPU 编码">
+                <el-input v-model="form.spuCode" placeholder="留空自动生成" :disabled="isEdit" />
+              </el-form-item>
+            </template>
+          </section>
+
+          <section class="form-card side-card">
             <h3 class="card-title">发布</h3>
             <el-form-item label="上架状态">
               <el-radio-group v-model="form.status" class="status-group">
@@ -145,14 +193,14 @@
                 <el-radio-button label="OFF_SALE">下架</el-radio-button>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="角标">
+            <el-form-item v-if="!isDevice" label="角标">
               <el-radio-group v-model="badgeMark" class="status-group">
                 <el-radio-button label="none">无</el-radio-button>
                 <el-radio-button label="hot">Hot</el-radio-button>
                 <el-radio-button label="featured">Featured</el-radio-button>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="卡片类型">
+            <el-form-item v-if="!isDevice" label="卡片类型">
               <el-radio-group v-model="physicalType" class="status-group">
                 <el-radio-button :label="0">eSIM</el-radio-button>
                 <el-radio-button :label="1">实体卡</el-radio-button>
@@ -161,36 +209,6 @@
             </el-form-item>
             <el-form-item label="排序">
               <el-input-number v-model="form.sortOrder" :min="0" :controls="false" style="width: 100%" />
-            </el-form-item>
-          </section>
-
-          <section class="form-card side-card">
-            <h3 class="card-title">分类</h3>
-            <el-form-item label="产品类型">
-              <el-select v-model="form.productKind" style="width: 100%">
-                <el-option label="ESIM" value="ESIM" />
-                <el-option label="PHONE" value="PHONE" />
-                <el-option label="DEVICE" value="DEVICE" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="大分类">
-              <div class="select-with-action">
-                <el-select v-model="rootId" clearable placeholder="选择大类" style="flex: 1" @change="onRootChange">
-                  <el-option v-for="c in roots" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
-                </el-select>
-                <el-button @click="openCatDialog('root')">+</el-button>
-              </div>
-            </el-form-item>
-            <el-form-item label="二级分类">
-              <div class="select-with-action">
-                <el-select v-model="form.categoryId" clearable placeholder="可选，选择二级分类" style="flex: 1">
-                  <el-option v-for="c in children" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
-                </el-select>
-                <el-button @click="openCatDialog('child')">+</el-button>
-              </div>
-            </el-form-item>
-            <el-form-item label="SPU 编码">
-              <el-input v-model="form.spuCode" placeholder="留空自动生成" :disabled="isEdit" />
             </el-form-item>
           </section>
 
@@ -237,7 +255,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -277,6 +295,8 @@ const form = reactive<any>({
   coverageRegions: [] as string[],
   skus: [] as any[]
 })
+
+const isDevice = computed(() => String(form.productKind || '').toUpperCase() === 'DEVICE')
 
 const catVisible = ref(false)
 const catSaving = ref(false)
@@ -325,12 +345,56 @@ function addSku() {
   })
 }
 
+function ensureDeviceSku() {
+  if (!form.skus.length) {
+    form.skus.push({
+      labelZh: '默认',
+      labelEn: 'Default',
+      months: 0,
+      durationDays: 0,
+      salePrice: 0,
+      isDefault: true,
+      status: 1,
+      sortOrder: 0
+    })
+  } else {
+    form.skus[0].isDefault = true
+    form.skus[0].labelZh = form.skus[0].labelZh || '默认'
+  }
+}
+
+const devicePrice = computed({
+  get: () => Number(form.skus?.[0]?.salePrice ?? 0),
+  set: (v: number) => {
+    ensureDeviceSku()
+    form.skus[0].salePrice = v
+  }
+})
+
+function onProductKindChange() {
+  if (isDevice.value) {
+    ensureDeviceSku()
+    // DEVICE 仅保留一档价格
+    if (form.skus.length > 1) {
+      form.skus.splice(1)
+    }
+    badgeMark.value = 'none'
+    physicalType.value = 0
+  } else if (!form.skus.length) {
+    addSku()
+  }
+}
+
 function onDefaultChange(index: number) {
   if (!form.skus[index]?.isDefault) return
   form.skus.forEach((s: any, i: number) => {
     if (i !== index) s.isDefault = false
   })
 }
+
+watch(isDevice, (v) => {
+  if (v) onProductKindChange()
+})
 
 function onPreviewError(e: Event) {
   const img = e.target as HTMLImageElement
@@ -416,46 +480,53 @@ async function save() {
     ElMessage.warning('请填写中文名')
     return
   }
+  if (isDevice.value) {
+    ensureDeviceSku()
+  }
   saving.value = true
   try {
     const statusMap: Record<string, number> = { ON_SALE: 1, DRAFT: 0, OFF_SALE: 0 }
+    const summaryZh = form.summaryZh ?? ''
+    const summaryEn = form.summaryEn ?? ''
     const payload = {
       name: (form.nameZh || '').trim(),
       nameZh: (form.nameZh || '').trim(),
       nameEn: (form.nameEn || '').trim() || undefined,
-      summaryZh: form.summaryZh ?? '',
-      summaryEn: form.summaryEn ?? '',
-      notesZh: notesZhText.value ?? '',
-      notesEn: notesEnText.value ?? '',
-      features: textToFeaturesJson(featuresZhText.value),
-      featuresEn: textToFeaturesJson(featuresEnText.value),
+      summaryZh,
+      summaryEn,
+      // DEVICE 简介同步到 description，供前台配套设备列表/悬停详情使用
+      description: isDevice.value ? summaryZh : undefined,
+      descriptionEn: isDevice.value ? summaryEn : undefined,
+      notesZh: isDevice.value ? '' : (notesZhText.value ?? ''),
+      notesEn: isDevice.value ? '' : (notesEnText.value ?? ''),
+      features: isDevice.value ? '[]' : textToFeaturesJson(featuresZhText.value),
+      featuresEn: isDevice.value ? '[]' : textToFeaturesJson(featuresEnText.value),
       spuCode: (form.spuCode || '').trim() || undefined,
       productKind: form.productKind,
-      categoryId: form.categoryId,
-      subCategoryId: form.categoryId,
+      categoryId: isDevice.value ? undefined : form.categoryId,
+      subCategoryId: isDevice.value ? undefined : form.categoryId,
       status: statusMap[form.status] ?? 0,
       sortOrder: form.sortOrder ?? 0,
-      dataLimit: form.dataLimit || undefined,
-      validityDays: form.baseValidityDays ?? 0,
-      baseValidityDays: form.baseValidityDays ?? 0,
-      displayImageUrl: form.displayImageUrl || undefined,
-      imageUrl: form.displayImageUrl || undefined,
-      applicableRegions: form.coverageRegions || [],
-      isHot: badgeMark.value === 'hot',
-      isFeatured: badgeMark.value === 'featured',
-      isPhysical: physicalType.value === 1,
-      isPhysicalCard: physicalType.value,
-      // 始终提交 skus，编辑时后端会按 id 同步增删改
-      skus: (form.skus || []).map((s: any, i: number) => ({
+      dataLimit: isDevice.value ? undefined : (form.dataLimit || undefined),
+      validityDays: isDevice.value ? 0 : (form.baseValidityDays ?? 0),
+      baseValidityDays: isDevice.value ? 0 : (form.baseValidityDays ?? 0),
+      displayImageUrl: isDevice.value ? undefined : (form.displayImageUrl || undefined),
+      imageUrl: isDevice.value ? undefined : (form.displayImageUrl || undefined),
+      applicableRegions: isDevice.value ? [] : (form.coverageRegions || []),
+      isHot: !isDevice.value && badgeMark.value === 'hot',
+      isFeatured: !isDevice.value && badgeMark.value === 'featured',
+      isPhysical: isDevice.value ? false : physicalType.value === 1,
+      isPhysicalCard: isDevice.value ? 0 : physicalType.value,
+      skus: (isDevice.value ? form.skus.slice(0, 1) : form.skus || []).map((s: any, i: number) => ({
         id: s.id,
         skuCode: s.skuCode,
-        label: s.labelZh || s.label,
-        labelZh: s.labelZh || s.label,
-        labelEn: s.labelEn,
-        months: s.months,
-        durationDays: s.durationDays,
+        label: s.labelZh || s.label || (isDevice.value ? '默认' : ''),
+        labelZh: s.labelZh || s.label || (isDevice.value ? '默认' : ''),
+        labelEn: s.labelEn || (isDevice.value ? 'Default' : undefined),
+        months: isDevice.value ? 0 : s.months,
+        durationDays: isDevice.value ? 0 : s.durationDays,
         salePrice: s.salePrice,
-        isDefault: !!s.isDefault,
+        isDefault: isDevice.value ? true : !!s.isDefault,
         status: s.status ?? 1,
         sortOrder: i
       }))
@@ -518,6 +589,7 @@ onMounted(async () => {
     if (data.status === 1 || data.status === 'ON_SALE') form.status = 'ON_SALE'
     else if (data.status === 'DRAFT') form.status = 'DRAFT'
     else form.status = 'OFF_SALE'
+    if (isDevice.value) ensureDeviceSku()
   } finally {
     loading.value = false
   }
@@ -553,12 +625,6 @@ onMounted(async () => {
 
 .side-card {
   padding-bottom: 12px;
-}
-
-.sticky-card {
-  position: sticky;
-  top: 16px;
-  z-index: 2;
 }
 
 .card-title {
@@ -693,10 +759,6 @@ onMounted(async () => {
 @media (max-width: 960px) {
   .form-layout {
     grid-template-columns: 1fr;
-  }
-
-  .sticky-card {
-    position: static;
   }
 
   .sku-row__main {

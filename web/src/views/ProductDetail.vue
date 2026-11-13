@@ -162,8 +162,27 @@
                       <input type="checkbox" :value="device.id" v-model="selectedDevices" />
                       <div class="pd-device-inner">
                         <div class="pd-device-text">
-                          <span class="pd-device-name">{{ locale === 'zh' ? device.name : device.nameEn }}</span>
-                          <span class="pd-device-desc">{{ locale === 'zh' ? device.description : device.descriptionEn }}</span>
+                          <div class="pd-device-name-row">
+                            <span class="pd-device-name">{{ deviceDisplayName(device) }}</span>
+                            <el-tooltip placement="top" :show-after="200" popper-class="device-detail-tooltip">
+                              <template #content>
+                                <div class="device-tip">
+                                  <div class="device-tip-title">{{ deviceDisplayName(device) }}</div>
+                                  <div v-if="deviceDisplayDesc(device)" class="device-tip-desc">{{ deviceDisplayDesc(device) }}</div>
+                                  <div class="device-tip-price">
+                                    {{ device.isFree ? $t('phoneNumbers.free') : ('$' + Number(device.price || 0).toFixed(2)) }}
+                                  </div>
+                                </div>
+                              </template>
+                              <button
+                                type="button"
+                                class="pd-device-info-btn"
+                                :aria-label="locale === 'zh' ? '详情' : 'Details'"
+                                @click.prevent.stop
+                              >i</button>
+                            </el-tooltip>
+                          </div>
+                          <span v-if="deviceDisplayDesc(device)" class="pd-device-desc">{{ deviceDisplayDesc(device) }}</span>
                         </div>
                         <span class="pd-device-price">{{ device.isFree ? $t('phoneNumbers.free') : '$' + device.price.toFixed(2) }}</span>
                       </div>
@@ -423,6 +442,16 @@ const { locale, t } = useI18n({ useScope: 'global' })
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+function deviceDisplayName(device: Device) {
+  if (locale.value === 'zh') return device.name || device.nameEn || ''
+  return device.nameEn || device.name || ''
+}
+
+function deviceDisplayDesc(device: Device) {
+  if (locale.value === 'zh') return device.description || device.descriptionEn || ''
+  return device.descriptionEn || device.description || ''
+}
 const siteConfig = useSiteConfigStore()
 
 const product = ref<Product | null>(null)
@@ -1216,8 +1245,33 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--primary, #0059b5) 6%, transparent);
 }
 .pd-device-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.pd-device-name-row { display: flex; align-items: center; gap: 6px; }
 .pd-device-name { font-size: 13px; font-weight: 600; color: var(--text-primary, #1a1b1f); }
+.pd-device-info-btn {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted, #94a3b8);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+.pd-device-info-btn:hover {
+  border-color: var(--accent-primary, #003ec7);
+  color: var(--accent-primary, #003ec7);
+}
 .pd-device-desc { font-size: 11px; color: var(--text-muted, #717785); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.device-tip { max-width: 260px; }
+.device-tip-title { font-weight: 700; margin-bottom: 6px; }
+.device-tip-desc { font-size: 12px; line-height: 1.5; opacity: 0.92; white-space: pre-wrap; }
+.device-tip-price { margin-top: 8px; font-weight: 700; }
 .pd-device-price { font-size: 13px; font-weight: 700; color: var(--primary, #0059b5); flex-shrink: 0; }
 .pd-shipping-note {
   display: flex;
