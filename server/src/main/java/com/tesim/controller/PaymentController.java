@@ -77,6 +77,10 @@ public class PaymentController {
     @PostMapping("/stripe/webhook")
     public ResponseEntity<String> stripeWebhook(@RequestBody String payload,
                                                 @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
+        if (sigHeader == null || sigHeader.isBlank()) {
+            log.error("[Stripe] Webhook 缺少 Stripe-Signature，拒绝处理");
+            return ResponseEntity.badRequest().body("missing signature");
+        }
         try {
             paymentAppService.handleStripeWebhook(payload, sigHeader);
             return ResponseEntity.ok("ok");

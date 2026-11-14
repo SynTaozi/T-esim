@@ -124,11 +124,11 @@ public class StripePaymentService {
         ensureConfigured();
         try {
             Session session = Session.retrieve(sessionId.trim());
+            // 仅 Stripe 明确 paid 时才落库；勿把 session.status=complete 当成已收款
             handleCheckoutSessionCompleted(session);
 
             String orderNo = metadataOrderNo(session);
-            boolean paid = "paid".equalsIgnoreCase(session.getPaymentStatus())
-                    || "complete".equalsIgnoreCase(session.getStatus());
+            boolean paid = "paid".equalsIgnoreCase(session.getPaymentStatus());
             if (StringUtils.hasText(orderNo)) {
                 SalesOrder order = orderAppService.findByOrderNo(orderNo);
                 if (order != null && !"PENDING_PAYMENT".equals(order.getStatus())
@@ -155,14 +155,15 @@ public class StripePaymentService {
         if (session == null) {
             return;
         }
-        if (StringUtils.hasText(session.getId())
-                && (session.getMetadata() == null || session.getMetadata().isEmpty()
-                || !StringUtils.hasText(session.getPaymentStatus()))) {
-            try {
-                session = Session.retrieve(session.getId());
-            } catch (StripeException e) {
-                log.warn("[Stripe] 重新拉取 Session 失败 - id={}, err={}", session.getId(), e.getMessage());
-            }
+        if (!StringUtils.hasText(session.getId())) {
+            log.warn("[Stripe] Session 缺少 id，跳过");
+            return;
+        }
+        try {
+            session = Session.retrieve(session.getId());
+        } catch (StripeException e) {
+            log.warn("[Stripe] 重新拉取 Session 失败，跳过确认 - id={}, err={}", session.getId(), e.getMessage());
+            return;
         }
 
         String orderNo = metadataOrderNo(session);
@@ -171,11 +172,11 @@ public class StripePaymentService {
             return;
         }
 
+        // 必须明确 paid；paymentStatus 为空或 unpaid 一律不得落已支付
         String paymentStatus = session.getPaymentStatus();
-        if (paymentStatus != null
-                && !"paid".equalsIgnoreCase(paymentStatus)
-                && !"no_payment_required".equalsIgnoreCase(paymentStatus)) {
-            log.info("[Stripe] Session 尚未 paid，跳过 - orderNo={}, paymentStatus={}", orderNo, paymentStatus);
+        if (!"paid".equalsIgnoreCase(paymentStatus)) {
+            log.info("[Stripe] Session 未确认 paid，跳过 - orderNo={}, paymentStatus={}, sessionStatus={}",
+                    orderNo, paymentStatus, session.getStatus());
             return;
         }
 
